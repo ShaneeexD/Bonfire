@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "freesync",
+  "main": "src/index.ts",
+  // Must be >= 2026-04-07 so the runtime answers WebSocket Close frames for us.
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "RoomDO" }]
+  },
+  // Free plan: only SQLite-backed Durable Objects are available.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDO"] }],
+  // Non-secret configuration. Every value is optional; see docs/DEPLOY.md for the full list.
+  // READ_KEY and WRITE_KEY are secrets: `npx wrangler secret put READ_KEY` (or .dev.vars locally).
+  "vars": {
+    "CHUNK_DEPTH": 2,
+    "MAX_FRAME_BYTES": 65536,
+    "MAX_CHUNK_BYTES": 1000000,
+    "MAX_ROOM_BYTES": 50000000,
+    "ROOM_DAILY_WRITE_ROWS": 25000,
+    "SNAPSHOT_MAX_AGE": 10,
+    // Who may write where. "public" = read key, "admin" = write key (admin bypasses all rules).
+    // $cid = the connecting client's id, * = any one key. See docs/SECURITY.md.
+    "RULES": {
+      "default": { "read": "public", "write": "admin" },
+      "paths": [
+        { "path": "players/$cid", "write": "public", "maxBytes": 4096 },
+        { "path": "players/$cid/pos", "ephemeral": true },
+        { "path": "presence/$cid", "write": "public", "maxBytes": 256 },
+        { "path": "chat/*", "write": "public", "maxBytes": 1024 }
+      ]
+    }
+  }
+}

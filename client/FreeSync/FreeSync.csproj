@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- netstandard2.0 loads in Unity/Mono mods (BepInEx, MelonLoader); net10.0 for modern .NET. -->
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FreeSync</RootNamespace>
+    <AssemblyName>FreeSync</AssemblyName>
+    <Version>0.1.0</Version>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>Firebase-style realtime JSON database client for FreeSync (Cloudflare Durable Objects). No dependencies.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FreeSync.Tests" />
+  </ItemGroup>
+
+</Project>

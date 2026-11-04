@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FreeSync/FreeSync.csproj" />
+  <Project Path="FreeSync.Tests/FreeSync.Tests.csproj" />
+</Solution>

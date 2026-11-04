@@ -1,0 +1,11 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node / Wrangler (see also server/.gitignore)
+node_modules/
+.wrangler/
+.dev.vars
