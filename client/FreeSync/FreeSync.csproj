@@ -10,8 +10,32 @@
     <Version>0.1.0</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Description>Firebase-style realtime JSON database client for FreeSync (Cloudflare Durable Objects). No dependencies.</Description>
+    <Description>Firebase-style realtime JSON database client for FreeSync: a free server on Cloudflare's Workers plan (Durable Objects). Live subscriptions, optimistic writes, presence (onDisconnect), auto-reconnect and offline cache. One assembly, no dependencies; works in Unity/BepInEx/MelonLoader mods (netstandard2.0) and modern .NET.</Description>
   </PropertyGroup>
+
+  <!-- NuGet package. RepositoryUrl/PackageProjectUrl are passed in by the release workflow (it knows the GitHub URL). -->
+  <PropertyGroup>
+    <PackageId>FreeSync</PackageId>
+    <Title>FreeSync realtime database client</Title>
+    <Authors>ShaneeexD</Authors>
+    <PackageTags>realtime;database;json;firebase;websocket;cloudflare;durable-objects;unity;bepinex;melonloader;modding;multiplayer</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 ShaneeexD</Copyright>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <!-- Reproducible builds with source paths that debuggers can map back to GitHub. -->
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="FreeSync.Tests" />

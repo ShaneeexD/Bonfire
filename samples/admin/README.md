@@ -4,6 +4,17 @@ A Windows Forms tool for looking at and editing a room's JSON document like a da
 you can edit by hand, plus SQL. Every change it makes shows up instantly in connected clients (try it next
 to the [visual demo](../visual)).
 
+**Download:** `FreeSync-DatabaseEditor-<version>-win-x64.zip` from the repository's Releases page. Unzip
+it and run `FreeSyncAdmin.exe`; no .NET install is needed. Enter your server URL, the room and the write
+key, then press **Connect**.
+
+- **Remembered settings:** they're stored in `%APPDATA%\FreeSync\admin-editor.json`, with the key
+  encrypted for your Windows account. Untick **Remember** to not store the key.
+- **SmartScreen warning:** this appears because the exe isn't code-signed. Choose **More info → Run
+  anyway**.
+
+**From source:**
+
 ```bash
 dotnet run --project samples/admin
 dotnet run --project samples/admin -- --room visual-demo --connect
@@ -13,10 +24,15 @@ dotnet run --project samples/admin -- --run --sql "SELECT * FROM players ORDER B
 Options: `--url --room --key --path` set the top-bar fields; `--connect` connects at start; `--sql "…"` fills
 the SQL box; `--run` connects and runs it once the data has loaded.
 
-If this checkout has `server/.deploy-keys.env` and `server/.deployed-url` (both git-ignored, created when
-you deployed), it defaults to your live Worker with the **write key** (admin: rules don't apply). Otherwise
-it uses `wrangler dev` on `127.0.0.1:8787` with `dev-write-key`. With the read key you can browse, but
-most writes are refused by the rules.
+Settings come from these sources, with later ones winning:
+
+1. built-in defaults: `wrangler dev` on `127.0.0.1:8787` with `dev-write-key`;
+2. what you used last time;
+3. this checkout's `server/.deployed-url` and `server/.deploy-keys.env` (git-ignored, created when you
+   deployed), which connect with the **write key** (admin, so rules don't apply);
+4. command-line options.
+
+With the read key you can browse, but most writes are refused by the rules.
 
 ## Editing by hand
 
@@ -120,10 +136,11 @@ The footer then shows the account's rows-written bar next to the room's.
 1. Go to https://dash.cloudflare.com/profile/api-tokens and choose **Create Token** → **Create Custom
    Token**.
 2. Give it one permission, **Account → Account Analytics → Read**, limited to your account.
-3. Save the token as the only content of `server/.analytics-token`, and your account ID (the 32
-   characters shown by `npx wrangler whoami`) in `server/.cloudflare-account`. Both files are
-   git-ignored, and the editor reads them at start-up. You can also paste the values into the fields
-   on the Usage tab for one session.
+3. Paste the token and your account ID (the 32 characters shown by `npx wrangler whoami`) into the
+   fields on the Usage tab. Once they work, they're remembered, with the token encrypted.
+
+   When running from source you can instead save them in `server/.analytics-token` and
+   `server/.cloudflare-account`. Both files are git-ignored.
 
 **Good to know:**
 

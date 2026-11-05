@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using FreeSync;
+using FreeSyncSamples;
 
 namespace FreeSyncVisualDemo;
 
@@ -142,7 +143,7 @@ internal sealed class DemoForm : Form
             return;
         }
         // A secret token per name gives a stable client id ($cid) across restarts of the same name.
-        var tokenFile = Path.Combine(Path.GetTempPath(), "freesync-visual-demo", _name.Text + ".token");
+        var tokenFile = Path.Combine(SavedSettings.Folder, "visual-demo-tokens", _name.Text + ".token");
         try
         {
             _db = new FreeSyncClient(_url.Text.Trim(), _room.Text.Trim(), _key.Text.Trim(), new FreeSyncOptions
@@ -159,6 +160,11 @@ internal sealed class DemoForm : Form
         }
         _me = _db.ClientId!;
         Text = $"FreeSync visual demo - {_name.Text} ({_me})";
+        var saved = SavedSettings.Load("visual-demo");
+        saved.Set("url", _url.Text.Trim());
+        saved.Set("room", _room.Text.Trim());
+        saved.SetSecret("key", _key.Text.Trim());
+        saved.Save();
         _connect.Text = "Disconnect";
         foreach (var t in new[] { _name, _url, _room, _key }) t.Enabled = false;
 

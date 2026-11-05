@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using FreeSync;
 using FreeSync.Json;
+using FreeSyncSamples;
 
 namespace FreeSyncAdmin;
 
@@ -22,6 +23,7 @@ internal sealed class EditorForm : Form
     private readonly TextBox _url = new() { Width = 220 };
     private readonly TextBox _room = new() { Width = 90 };
     private readonly TextBox _key = new() { Width = 80, UseSystemPasswordChar = true };
+    private readonly CheckBox _rememberKey = new() { Text = "Remember", Checked = true, AutoSize = true, Padding = new Padding(2, 3, 0, 0) };
     private readonly TextBox _path = new() { Width = 100, PlaceholderText = "(whole room)" };
     private readonly Button _connect = new() { Text = "Connect", AutoSize = true };
     private readonly Label _status = new() { AutoSize = true, Padding = new Padding(6, 6, 0, 0), Font = new Font("Segoe UI", 9, FontStyle.Bold) };
@@ -154,7 +156,7 @@ internal sealed class EditorForm : Form
         var top = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, Padding = new Padding(6, 6, 6, 0), WrapContents = false };
         top.Controls.AddRange(new Control[]
         {
-            Caption("URL"), _url, Caption("Room"), _room, Caption("Key"), _key, Caption("Path"), _path, _connect, _status,
+            Caption("URL"), _url, Caption("Room"), _room, Caption("Key"), _key, _rememberKey, Caption("Path"), _path, _connect, _status,
             _batch, _submit, _discard,
         });
 
@@ -328,6 +330,7 @@ internal sealed class EditorForm : Form
             _db = null;
             return;
         }
+        RememberConnection();
         _db.StateChanged += state =>
         {
             SetStatus(state == ConnectionState.Connected ? $"Connected ({_db?.Role ?? "?"})" : state.ToString(),
@@ -342,7 +345,7 @@ internal sealed class EditorForm : Form
                 Log("Connected with the READ key: most writes will be refused by the rules. Use the write key to edit freely.");
         };
         _db.ErrorOccurred += e => Log($"error: {e.Code}: {e.Message}");
-        foreach (var t in new[] { _url, _room, _key, _path }) t.Enabled = false;
+        foreach (var t in new Control[] { _url, _room, _key, _path, _rememberKey }) t.Enabled = false;
         _connect.Text = "Disconnect";
         Text = $"FreeSync admin editor - {_room.Text}{(_scope.Length > 0 ? "/" + JsonUtil.Join(_scope) : "")}";
         Subscribe();
@@ -383,7 +386,7 @@ internal sealed class EditorForm : Form
         _staged.Clear();
         _tree.Nodes.Clear();
         _selected = null;
-        foreach (var t in new[] { _url, _room, _key, _path }) t.Enabled = true;
+        foreach (var t in new Control[] { _url, _room, _key, _path, _rememberKey }) t.Enabled = true;
         _connect.Text = "Connect";
         SetStatus("Not connected", Color.Gray);
         _usageView.ShowMessage("Connect with the write key to see usage.");
@@ -965,6 +968,18 @@ internal sealed class EditorForm : Form
         _sqlStatus.ForeColor = error ? Color.Firebrick : Color.DarkGreen;
     }
 
+    /// <summary>Remembers the server for next time. The key is stored only if "Remember" is ticked, encrypted
+    /// for this Windows user (DPAPI).</summary>
+    private void RememberConnection()
+    {
+        var saved = SavedSettings.Load("admin-editor");
+        saved.Set("url", _url.Text.Trim());
+        saved.Set("room", _room.Text.Trim());
+        saved.Set("path", _path.Text.Trim());
+        saved.SetSecret("key", _rememberKey.Checked ? _key.Text.Trim() : null);
+        saved.Save();
+    }
+
     // ---- usage ------------------------------------------------------------------------------
 
     private void ShowUsageTab()
@@ -1029,6 +1044,10 @@ internal sealed class EditorForm : Form
         {
             var usage = await AccountUsageModel.FetchAsync(Http, _usageView.ApiToken.Text, _usageView.AccountId.Text, DateTime.UtcNow);
             _usageView.ShowAccount(usage, DateTime.Now);
+            var saved = SavedSettings.Load("admin-editor");
+            saved.Set("accountId", _usageView.AccountId.Text.Trim());
+            saved.SetSecret("analyticsToken", _usageView.ApiToken.Text.Trim());
+            saved.Save();
             // The account's rows written is what actually stops writes, so show it in the footer too.
             var rows = AccountUsageModel.Meters(usage)[0];
             _footerAccount.Set(rows.Value, rows.Max, "account: " + rows.Text);

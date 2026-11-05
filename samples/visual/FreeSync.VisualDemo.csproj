@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\client\FreeSync\FreeSync.csproj" />
+    <Compile Include="..\shared\SavedSettings.cs" Link="SavedSettings.cs" />
   </ItemGroup>
 
 </Project>

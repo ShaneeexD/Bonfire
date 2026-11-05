@@ -14,7 +14,11 @@ await db.Ref($"players/{db.ClientId}/score").SetAsync(42);
 await db.Ref($"presence/{db.ClientId}").OnDisconnect().Remove();
 ```
 
+**New here?** [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks you from an empty folder to a
+working app in VS Code, a BepInEx or MelonLoader mod, or a Unity project.
+
 **Contents:**
+[Download](#download) ·
 [Features](#features) ·
 [How it works](#how-it-works) ·
 [Free-plan limits](#free-plan-limits) ·
@@ -27,8 +31,30 @@ await db.Ref($"presence/{db.ClientId}").OnDisconnect().Remove();
 [Samples](#samples) ·
 [Files that stay on your machine](#files-that-stay-on-your-machine) ·
 [Tests](#tests) ·
+[Publishing a release](#publishing-a-release) ·
 [Troubleshooting](#troubleshooting) ·
-[Docs](#docs)
+[Docs](#docs) ·
+[Licence](#licence)
+
+## Download
+
+Ready-made files are on this repository's **Releases** page (right-hand side on GitHub). There's
+nothing to build:
+
+| File | What |
+|---|---|
+| `FreeSync-DatabaseEditor-<version>-win-x64.zip` | **Database editor** for Windows 10/11: browse and edit data, SQL, batch submit, usage meter. Unzip and run `FreeSyncAdmin.exe`; no .NET install needed. |
+| `FreeSync-VisualDemo-<version>-win-x64.zip` | **Visual demo** for Windows: run `FreeSyncVisualDemo.exe` twice to watch two clients sync. |
+| `FreeSync-Client-<version>.zip` | **Client library**: `FreeSync.dll` for mods (`netstandard2.0`) and .NET apps (`net10.0`), plus serializer adapters. |
+| `FreeSync.<version>.nupkg` | **NuGet package** for .NET projects: `dotnet add package FreeSync`. Use this file if the package isn't on nuget.org yet; [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) shows how. |
+
+The apps talk to **your own** FreeSync server, so [deploy one](#deploy-to-cloudflare) first (it's free).
+
+- **First launch:** enter the server URL (`wss://<name>.<subdomain>.workers.dev`), a room and a key,
+  then press **Connect**. They're remembered for next time.
+- **Where settings are saved:** in `%APPDATA%\FreeSync`. Keys are encrypted for your Windows account.
+- **"Windows protected your PC":** this warning appears because the exes aren't code-signed. Choose
+  **More info → Run anyway**.
 
 ## Features
 
@@ -113,7 +139,7 @@ Sources and numbers: [docs/LIMITS.md](docs/LIMITS.md).
 |---|---|
 | The server | [Node.js](https://nodejs.org) 18 or newer. A free [Cloudflare account](https://dash.cloudflare.com/sign-up) to deploy (not needed to try it locally). |
 | The C# client and samples | [.NET SDK 10](https://dotnet.microsoft.com/download). The library itself also targets `netstandard2.0`, so it runs in Unity/Mono. |
-| The database app and visual demo | Windows (they're Windows Forms apps) |
+| The database app and visual demo | Windows 10/11. The [downloads](#download) need nothing else; building them yourself needs the .NET SDK. |
 
 ## Try it locally (no Cloudflare account needed)
 
@@ -213,16 +239,14 @@ The same file has all the size and rate limits. See [docs/SECURITY.md](docs/SECU
 
 ## Use the C# client
 
-**Build the library:**
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) has step-by-step guides. In short:
 
-```bash
-dotnet build client/FreeSync -c Release
-```
-
-| Use it in | Take this file |
+| Project | How to add FreeSync |
 |---|---|
-| Unity, BepInEx or MelonLoader (Mono) | `client/FreeSync/bin/Release/netstandard2.0/FreeSync.dll` |
-| Modern .NET apps | `client/FreeSync/bin/Release/net10.0/FreeSync.dll`, or add a project reference to `client/FreeSync/FreeSync.csproj` |
+| .NET app (VS Code, Visual Studio, Rider) | `dotnet add package FreeSync` |
+| BepInEx or MelonLoader mod | Reference `netstandard2.0/FreeSync.dll` from the [Releases](#download) zip, and ship it next to your mod |
+| Unity project | Copy `netstandard2.0/FreeSync.dll` into `Assets/Plugins/` |
+| Working on FreeSync itself | Add a project reference to `client/FreeSync/FreeSync.csproj` |
 
 It's a single DLL with no dependencies.
 
@@ -288,17 +312,22 @@ WebGL isn't supported.
 
 ## The database app (admin editor)
 
-A Windows app for looking at and editing a room's data like a database. It's in
-[`samples/admin`](samples/admin), and its [README](samples/admin/README.md) has everything in detail.
+A Windows app for looking at and editing a room's data like a database. Its
+[README](samples/admin/README.md) has everything in detail.
 
-```bash
-dotnet run --project samples/admin -- --connect
-dotnet run --project samples/admin -- --room global --connect
-```
+- **Download:** get `FreeSync-DatabaseEditor-…zip` from [Releases](#download), unzip it, and run
+  `FreeSyncAdmin.exe`. Enter your server URL, the room and your **write key**, then press
+  **Connect**. They're remembered, with the key encrypted for your Windows account (untick
+  **Remember** to skip saving the key).
+- **From source:**
 
-It reads your URL and **write key** from `server/.deployed-url` and `server/.deploy-keys.env`, or uses
-the local server if those files don't exist. Everything can also be typed into the top bar before
-pressing **Connect**.
+  ```bash
+  dotnet run --project samples/admin -- --connect
+  dotnet run --project samples/admin -- --room global --connect
+  ```
+
+  Built from source in this repository, it picks up your URL and write key from
+  `server/.deployed-url` and `server/.deploy-keys.env` automatically.
 
 - **Tree (left):** the live document, updated as players write.
   - Select a node to edit its value on the right (JSON, text, number or true/false), then press
@@ -333,20 +362,23 @@ pressing **Connect**.
 
 1. Go to https://dash.cloudflare.com/profile/api-tokens → **Create Token** → **Create Custom Token**.
 2. Give it one permission, **Account → Account Analytics → Read**, for your account.
-3. Save the token as the only content of `server/.analytics-token`.
-4. Save your account ID (shown by `npx wrangler whoami`) in `server/.cloudflare-account`.
+3. Paste the token and your account ID (shown by `npx wrangler whoami`, or in the dashboard's URL)
+   into the fields on the **Usage** tab. They're remembered, with the token encrypted.
 
-Both files are git-ignored. The token can only read analytics, and the app sends it only to
-`api.cloudflare.com`.
+If you run from source, you can instead save the token as the only content of
+`server/.analytics-token` and the account ID in `server/.cloudflare-account`. Both files are
+git-ignored.
+
+The token can only read analytics, and the app sends it only to `api.cloudflare.com`.
 
 ## Samples
 
 | Sample | Run | Shows |
 |---|---|---|
-| [Visual demo](samples/visual) (Windows) | `powershell -ExecutionPolicy Bypass -File samples\visual\run-two.ps1` | Two windows: moving dots (ephemeral positions), scores, chat, presence |
+| [Visual demo](samples/visual) (Windows) | Run the [downloaded](#download) exe twice, or `powershell -ExecutionPolicy Bypass -File samples\visual\run-two.ps1` | Two windows: moving dots (ephemeral positions), scores, chat, presence |
 | [Console](samples/console) | `dotnet run --project samples/console -- --name alice` (type `say hi`, `score 5`, `move 1 2`) | The same features in a terminal, on any OS |
 | [Unity](samples/unity) | Copy the script and DLL into a project | Syncing a GameObject's position with `Dispatch()` |
-| [Database app](samples/admin) (Windows) | `dotnet run --project samples/admin -- --connect` | Editing, SQL, batch submit, usage meter |
+| [Database app](samples/admin) (Windows) | The [downloaded](#download) exe, or `dotnet run --project samples/admin -- --connect` | Editing, SQL, batch submit, usage meter |
 
 ## Files that stay on your machine
 
@@ -360,6 +392,11 @@ All of these are git-ignored. Never commit them.
 | `server/.analytics-token` | Cloudflare API token (Account Analytics: Read) | Database app usage meter |
 | `server/.cloudflare-account` | Your Cloudflare account ID | Database app usage meter |
 
+The downloaded apps keep their settings in `%APPDATA%\FreeSync` instead (`admin-editor.json`,
+`visual-demo.json`, and `visual-demo-tokens\` for player ids). Keys and the API token there are
+encrypted with Windows DPAPI, so the files are useless on another PC or Windows account. Delete the
+folder to forget everything.
+
 The **read key** is not really a secret, because it ships inside your mod. Rules decide what it can
 write. The **write key** and the **API token** are secrets.
 
@@ -370,6 +407,38 @@ cd server && npm test                                                   # Worker
 dotnet test --project client/FreeSync.Tests/FreeSync.Tests.csproj       # C# client (xUnit)
 dotnet test --project samples/admin/Tests/FreeSync.AdminEditor.Tests.csproj   # SQL engine, batching, usage meter
 ```
+
+## Publishing a release
+
+The download files are built by [`scripts/publish.ps1`](scripts/publish.ps1). It runs the C# tests,
+then writes the three zips to `dist/`, which is git-ignored:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\publish.ps1 -Version 0.1.0
+```
+
+On GitHub, the [release workflow](.github/workflows/release.yml) does this for you. Push a version
+tag and it runs all the tests, builds the zips, and creates a Release with them attached:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Running the workflow by hand from the Actions tab builds the same files as a downloadable artifact,
+without creating a release.
+
+The release also includes the NuGet package (`FreeSync.<version>.nupkg` and its `.snupkg` symbols).
+To have the workflow publish it to **nuget.org** automatically, so `dotnet add package FreeSync` just
+works:
+
+1. Sign in at https://www.nuget.org and create an API key (**API Keys → Create**) with the **Push**
+   scope, limited to the glob pattern `FreeSync`.
+2. In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository
+   secret** and add it as `NUGET_API_KEY`.
+
+Without the secret, that step is skipped. The first push claims the package name `FreeSync` for your
+nuget.org account.
 
 ## Troubleshooting
 
@@ -383,11 +452,20 @@ dotnet test --project samples/admin/Tests/FreeSync.AdminEditor.Tests.csproj   # 
 | `npm install` fails with a peer-dependency error | `server/.npmrc` sets `legacy-peer-deps`; run `npm install` inside `server/`. |
 | "Testing with VSTest target is no longer supported" | Run tests from the repo, where `global.json` selects the new test runner. |
 | Unity WebGL can't connect | Not supported: browsers need a JavaScript WebSocket bridge. |
+| "Windows protected your PC" when starting a downloaded exe | The exes aren't code-signed. Choose **More info → Run anyway**. |
+| The release workflow can't create a release | In the repository's Settings → Actions → General, allow workflows **Read and write** permissions. |
 
 ## Docs
 
+- [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md): use the client in a .NET app (VS Code), a mod, or Unity.
 - [docs/DEPLOY.md](docs/DEPLOY.md): deployment, every configuration var, local development, monitoring.
 - [docs/SECURITY.md](docs/SECURITY.md): keys, client ids, rules, validation, what is and isn't protected.
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): the WebSocket wire protocol and HTTP endpoints.
 - [docs/LIMITS.md](docs/LIMITS.md): Cloudflare free-plan limits, with sources.
 - [docs/DESIGN.md](docs/DESIGN.md): architecture and design decisions.
+
+## Licence
+
+[MIT](LICENSE). You may use, change and redistribute FreeSync, including in commercial and
+closed-source mods, as long as the licence notice is kept. Every release zip and the NuGet package
+include it.

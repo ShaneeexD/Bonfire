@@ -3,8 +3,11 @@
 //   dotnet run        options: --url --room --key --path, --connect (connect at start),
 //                     --sql "query" (put a query in the SQL box), --run (run it once connected)
 //
-// Defaults: your live Worker with the WRITE key if server/.deploy-keys.env and server/.deployed-url
-// exist (both git-ignored); otherwise wrangler dev on 127.0.0.1:8787 with dev-write-key.
+// Settings, later ones winning: built-in defaults (`wrangler dev` on 127.0.0.1:8787 with dev-write-key), what you
+// used last time (%APPDATA%\FreeSync\admin-editor.json; keys encrypted for your Windows account), this checkout's
+// server/.deployed-url + server/.deploy-keys.env (git-ignored), then command-line options.
+
+using FreeSyncSamples;
 
 namespace FreeSyncAdmin;
 
@@ -34,6 +37,17 @@ internal sealed class AdminSettings
     public static AdminSettings FromArgs(string[] args)
     {
         var s = new AdminSettings();
+        var saved = SavedSettings.Load("admin-editor");
+        if (saved.Exists)
+        {
+            s.Url = saved.Get("url") ?? s.Url;
+            s.Room = saved.Get("room") ?? s.Room;
+            s.RootPath = saved.Get("path") ?? s.RootPath;
+            s.Key = saved.GetSecret("key") ?? s.Key;
+            s.AccountId = saved.Get("accountId") ?? s.AccountId;
+            s.AnalyticsToken = saved.GetSecret("analyticsToken") ?? s.AnalyticsToken;
+            s.Source = "your last session";
+        }
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
             var keys = Path.Combine(dir.FullName, "server", ".deploy-keys.env");

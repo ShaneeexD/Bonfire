@@ -1,0 +1,97 @@
+# Builds the downloadable files and publishes them as a GitHub Release.
+#
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# Running it by hand (Actions tab → Release → Run workflow) builds the same files as a downloadable
+# workflow artifact without creating a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  server-tests:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install
+        working-directory: server
+        run: npm ci
+      - name: Test
+        working-directory: server
+        run: npm test
+
+  build:
+    name: Build and publish
+    needs: server-tests
+    runs-on: windows-latest
+    env:
+      # Job-level so the nuget.org step's `if:` can see whether the secret exists.
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.0-ci.${{ github.run_number }}" }
+          "value=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Test and build release files
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Version ${{ steps.version.outputs.value }}
+
+      - name: Upload as workflow artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: freesync-${{ steps.version.outputs.value }}
+          path: |
+            dist/*.zip
+            dist/*.nupkg
+            dist/*.snupkg
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.nupkg
+            dist/*.snupkg
+          generate_release_notes: true
+          body: |
+            ## Downloads
+
+            | File | What |
+            |---|---|
+            | `FreeSync-DatabaseEditor-*-win-x64.zip` | **Database editor** for Windows: browse and edit data, SQL, batch submit, usage meter. Unzip and run `FreeSyncAdmin.exe`; no .NET install needed. |
+            | `FreeSync-VisualDemo-*-win-x64.zip` | **Visual demo** for Windows: run `FreeSyncVisualDemo.exe` twice to watch two clients sync. |
+            | `FreeSync-Client-*.zip` | **Client library** `FreeSync.dll` for mods (netstandard2.0) and .NET apps (net10.0), plus serializer adapters. |
+            | `FreeSync.*.nupkg` | **NuGet package** for `dotnet add package FreeSync` (also on nuget.org when published there). |
+
+            The exes are not code-signed, so Windows SmartScreen may warn: choose **More info → Run anyway**.
+            You need your own FreeSync server first: see the README's "Deploy to Cloudflare".
+
+      # Optional: publish the package to nuget.org. Add a repository secret named NUGET_API_KEY
+      # (nuget.org → API Keys, scope "Push") to enable it; without the secret this step is skipped.
+      - name: Push to nuget.org
+        if: github.ref_type == 'tag' && env.NUGET_API_KEY != ''
+        shell: pwsh
+        run: dotnet nuget push "dist/*.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate

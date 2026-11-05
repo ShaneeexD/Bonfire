@@ -35,6 +35,8 @@ bin/
 obj/
 TestResults/
 publish/
+# Release zips built by scripts/publish.ps1.
+dist/
 *.user
 *.suo
 *.nupkg

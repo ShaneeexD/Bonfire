@@ -3,8 +3,11 @@
 //   dotnet run                         (or run-two.ps1 to open two windows)
 //   dotnet run -- --name Ann --auto    (options: --url --room --key --name --auto --autoconnect)
 //
-// Defaults: if server/.deploy-keys.env and server/.deployed-url exist (created when you deployed),
-// it connects to your live Worker with the read key. Otherwise it uses `wrangler dev` on 127.0.0.1:8787.
+// Settings, later ones winning: built-in defaults (`wrangler dev` on 127.0.0.1:8787), what you used last time
+// (%APPDATA%\FreeSync\visual-demo.json), this checkout's server/.deployed-url + server/.deploy-keys.env
+// (git-ignored, created when you deployed), then command-line options.
+
+using FreeSyncSamples;
 
 namespace FreeSyncVisualDemo;
 
@@ -31,6 +34,14 @@ internal sealed class DemoSettings
     public static DemoSettings FromArgs(string[] args)
     {
         var s = new DemoSettings();
+        var saved = SavedSettings.Load("visual-demo");
+        if (saved.Exists)
+        {
+            s.Url = saved.Get("url") ?? s.Url;
+            s.Room = saved.Get("room") ?? s.Room;
+            s.Key = saved.GetSecret("key") ?? s.Key;
+            s.Source = "your last session";
+        }
         s.LoadDeployment();
         string? Arg(string flag)
         {
