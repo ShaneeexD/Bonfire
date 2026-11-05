@@ -121,6 +121,9 @@ to the Worker (it needs a domain on Cloudflare, which is free to add).
   approximate. The per-room daily write budget uses the same counters.
 - The Cloudflare dashboard (Workers & Pages → your Worker → Metrics, and Durable Objects) shows exact
   account-wide request, duration and storage numbers.
+- The admin editor (`samples/admin`) has a Usage tab. It shows this room's meters, and with an
+  analytics API token it also shows exact account-wide usage against every free-plan limit. See
+  [its README](../samples/admin/README.md#whole-account-usage-optional).
 - When a free limit is hit, clients switch to `QuotaExceeded` and keep showing their last data. Reads
   of cached data keep working, writes fail fast, and everything recovers after 00:00 UTC. See
   [LIMITS.md](LIMITS.md).

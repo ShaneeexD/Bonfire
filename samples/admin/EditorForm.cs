@@ -62,6 +62,16 @@ internal sealed class EditorForm : Form
 
     private readonly System.Windows.Forms.Timer _refresh = new() { Interval = 200 };
 
+    // Usage
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly UsageView _usageView = new() { Dock = DockStyle.Fill };
+    private readonly MeterBar _footerMeter = new() { Width = 360, Cursor = Cursors.Hand, Margin = new Padding(3, 3, 3, 3) };
+    private readonly MeterBar _footerAccount = new() { Width = 300, Cursor = Cursors.Hand, Margin = new Padding(8, 3, 3, 3), Visible = false };
+    private readonly Label _footerText = new() { AutoSize = true, Padding = new Padding(4, 6, 0, 0), ForeColor = Color.DimGray, Cursor = Cursors.Hand };
+    private readonly System.Windows.Forms.Timer _usageTimer = new() { Interval = 60_000 };
+    private TabPage? _usageTab;
+    private bool _usageBusy;
+
     private FreeSyncClient? _db;
     private IDisposable? _subscription;
     private string[] _scope = Array.Empty<string>();
@@ -177,9 +187,11 @@ internal sealed class EditorForm : Form
 
         var logTab = new TabPage("Log");
         logTab.Controls.Add(_log);
+        _usageTab = new TabPage("Usage");
+        _usageTab.Controls.Add(_usageView);
 
         var tabs = new TabControl { Dock = DockStyle.Fill };
-        tabs.TabPages.AddRange(new[] { sqlTab, pendingTab, logTab });
+        tabs.TabPages.AddRange(new[] { sqlTab, pendingTab, _usageTab, logTab });
         _pendingTab = pendingTab;
         _tabs = tabs;
 
@@ -191,7 +203,16 @@ internal sealed class EditorForm : Form
         main.Panel1.Controls.Add(_tree);
         main.Panel2.Controls.Add(right);
 
+        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 30, WrapContents = false, Padding = new Padding(4, 0, 0, 0) };
+        footer.Controls.Add(new Label { Text = "Room writes today:", AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
+        footer.Controls.Add(_footerMeter);
+        footer.Controls.Add(_footerAccount);
+        footer.Controls.Add(_footerText);
+        _footerMeter.Set(0, null, "-");
+        _footerText.Text = "click for details";
+
         Controls.Add(main);
+        Controls.Add(footer);
         Controls.Add(top);
         Load += (_, _) =>
         {
@@ -265,6 +286,15 @@ internal sealed class EditorForm : Form
                 SaveEditor();
             }
         };
+        _usageView.AccountId.Text = _settings.AccountId;
+        _usageView.ApiToken.Text = _settings.AnalyticsToken;
+        _usageView.RefreshButton.Click += async (_, _) => await RefreshUsage();
+        _footerMeter.Click += (_, _) => ShowUsageTab();
+        _footerAccount.Click += (_, _) => ShowUsageTab();
+        _footerText.Click += (_, _) => ShowUsageTab();
+        // Only while this window is active: every refresh costs a Worker request and a Durable Object request.
+        _usageTimer.Tick += async (_, _) => { if (ActiveForm == this) await RefreshUsage(); };
+        _usageTimer.Start();
         _refresh.Tick += (_, _) =>
         {
             if (!_viewDirty) return;
@@ -316,6 +346,7 @@ internal sealed class EditorForm : Form
         _connect.Text = "Disconnect";
         Text = $"FreeSync admin editor - {_room.Text}{(_scope.Length > 0 ? "/" + JsonUtil.Join(_scope) : "")}";
         Subscribe();
+        _ = RefreshUsage();
         if (_settings.RunSql) RunWhenLoaded();
     }
 
@@ -355,6 +386,8 @@ internal sealed class EditorForm : Form
         foreach (var t in new[] { _url, _room, _key, _path }) t.Enabled = true;
         _connect.Text = "Connect";
         SetStatus("Not connected", Color.Gray);
+        _usageView.ShowMessage("Connect with the write key to see usage.");
+        _footerMeter.Set(0, null, "-");
         StagedChanged();
     }
 
@@ -767,6 +800,7 @@ internal sealed class EditorForm : Form
             long last = 0;
             foreach (var update in updates) last = await _db.Ref("").UpdateAsync(update);
             var bytes = updates.Sum(u => FsJson.Serialize(u).Length);
+            _ = RefreshUsage();
             Log($"sent {description}: {changes.Count} path(s) in {updates.Count} request(s){(updates.Count > 1 ? " (too big for one frame; each part is atomic)" : " (atomic)")}, {bytes} bytes, rev {last}, {sw.ElapsedMilliseconds} ms");
             return true;
         }
@@ -931,6 +965,81 @@ internal sealed class EditorForm : Form
         _sqlStatus.ForeColor = error ? Color.Firebrick : Color.DarkGreen;
     }
 
+    // ---- usage ------------------------------------------------------------------------------
+
+    private void ShowUsageTab()
+    {
+        if (_tabs != null && _usageTab != null) _tabs.SelectedTab = _usageTab;
+        _ = RefreshUsage();
+    }
+
+    /// <summary>Fetches the room's counters from GET /db/&lt;room&gt;/stats (write key only) and updates the meters.</summary>
+    private async Task RefreshUsage()
+    {
+        if (_db == null || _usageBusy) return;
+        _usageBusy = true;
+        try
+        {
+            var baseUrl = _url.Text.Trim().TrimEnd('/');
+            if (baseUrl.StartsWith("wss://", StringComparison.OrdinalIgnoreCase)) baseUrl = "https://" + baseUrl[6..];
+            else if (baseUrl.StartsWith("ws://", StringComparison.OrdinalIgnoreCase)) baseUrl = "http://" + baseUrl[5..];
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/db/{Uri.EscapeDataString(_room.Text.Trim())}/stats");
+            req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + _key.Text.Trim());
+            using var res = await Http.SendAsync(req);
+            var body = await res.Content.ReadAsStringAsync();
+            if ((int)res.StatusCode == 403)
+            {
+                _usageView.ShowMessage("Usage needs the write key (the read key can't see room stats).");
+                _footerMeter.Set(0, null, "write key needed");
+                return;
+            }
+            if (!res.IsSuccessStatusCode)
+            {
+                _usageView.Status.Text = $"Refresh failed: HTTP {(int)res.StatusCode}";
+                return;
+            }
+            var accountTask = RefreshAccountUsage();
+            var usage = UsageModel.From(FsJson.Parse(body), DateTime.UtcNow);
+            _usageView.Show(usage);
+            _usageView.Status.Text = $"Updated {DateTime.Now:HH:mm:ss} · refreshes every 60 s while this window is active (each refresh costs 2 requests)";
+            var h = usage.Headline;
+            _footerMeter.Set(h.Value, h.Max, h.Text);
+            _footerText.Text = usage.Title.Split('·').Last().Trim() + " · click for details";
+            await accountTask;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or FormatException)
+        {
+            _usageView.Status.Text = "Refresh failed: " + e.Message;
+        }
+        finally
+        {
+            _usageBusy = false;
+        }
+    }
+
+    /// <summary>Account-wide usage from Cloudflare's analytics API (optional; needs an analytics token).</summary>
+    private async Task RefreshAccountUsage()
+    {
+        if (!_usageView.HasAccountSettings)
+        {
+            _usageView.ShowAccountMessage("Enter your account ID and an API token with Account Analytics: Read to see exact account-wide usage.");
+            return;
+        }
+        try
+        {
+            var usage = await AccountUsageModel.FetchAsync(Http, _usageView.ApiToken.Text, _usageView.AccountId.Text, DateTime.UtcNow);
+            _usageView.ShowAccount(usage, DateTime.Now);
+            // The account's rows written is what actually stops writes, so show it in the footer too.
+            var rows = AccountUsageModel.Meters(usage)[0];
+            _footerAccount.Set(rows.Value, rows.Max, "account: " + rows.Text);
+            _footerAccount.Visible = true;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or FormatException)
+        {
+            _usageView.ShowAccountError(e.Message);
+        }
+    }
+
     // ---- misc --------------------------------------------------------------------------------
 
     private void SetStatus(string text, Color color)
@@ -968,6 +1077,7 @@ internal sealed class EditorForm : Form
             return;
         }
         _refresh.Stop();
+        _usageTimer.Stop();
         _subscription?.Dispose();
         _db?.Dispose();
         base.OnFormClosing(e);

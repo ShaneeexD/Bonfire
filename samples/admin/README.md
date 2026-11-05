@@ -77,5 +77,64 @@ With **Batch mode** ticked, nothing is sent while you work:
 With batch mode **off**, every save, add, rename and delete is sent immediately, and so is each SQL
 statement (as one request per statement).
 
+## Usage meter
+
+The bar at the bottom always shows **rows written today against the room's daily budget**. Click it, or
+open the **Usage** tab, for the full picture:
+
+| Meter | Against | Why it matters |
+|---|---|---|
+| Rows written today | the room's `ROOM_DAILY_WRITE_ROWS` (25,000) | When it's full, writes to this room fail with `room_quota` until 00:00 UTC |
+| Share of the account's rows written | the free plan's 100,000/day | That allowance is shared by **every room** on your account |
+| Room storage | `MAX_ROOM_BYTES` (50 MB) | When it's full, writes that add data fail with `room_full` |
+| ≈ Durable Object requests | the free plan's 100,000/day | Estimated as connections + incoming messages ÷ 20 |
+
+The tab also shows today's write operations, connections, messages, live connections and refused
+operations, plus a 7-day history.
+
+- **Source:** the numbers come from the room's `GET /db/<room>/stats` endpoint, so the meter needs the
+  **write key**.
+- **Cost:** it refreshes on connect, after each Submit, and every 60 seconds while the editor is the
+  active window. Each refresh costs one Worker request and one Durable Object request.
+- **Accuracy:** the counters are approximate. They can undercount when a room sleeps between writes.
+  Exact account-wide totals are in the Cloudflare dashboard (Workers & Pages → your Worker → Metrics).
+- Bars turn orange at 70% and red at 90%.
+
+### Whole-account usage (optional)
+
+With a Cloudflare API token, the Usage tab also shows **exact account-wide** numbers for today. They
+come from Cloudflare's GraphQL Analytics API and cover all rooms together, measured against the free
+plan's limits:
+
+- rows written: 100k/day, the usual first limit to hit
+- Durable Object requests: 100k/day, with WebSocket messages counted 20:1 as billed
+- Worker requests: 100k/day
+- rows read: 5M/day
+- duration: 13,000 GB-s/day
+- SQLite storage: 5 GB in total
+
+The footer then shows the account's rows-written bar next to the room's.
+
+**To set it up:**
+
+1. Go to https://dash.cloudflare.com/profile/api-tokens and choose **Create Token** → **Create Custom
+   Token**.
+2. Give it one permission, **Account → Account Analytics → Read**, limited to your account.
+3. Save the token as the only content of `server/.analytics-token`, and your account ID (the 32
+   characters shown by `npx wrangler whoami`) in `server/.cloudflare-account`. Both files are
+   git-ignored, and the editor reads them at start-up. You can also paste the values into the fields
+   on the Usage tab for one session.
+
+**Good to know:**
+
+- The token only reads analytics, so it can't change your account. The editor sends it to
+  `api.cloudflare.com` only; the Worker never sees it.
+- Analytics run a few minutes behind. Cloudflare's billing is authoritative.
+- Field names come from the API's own schema, because Cloudflare's docs don't list them:
+  - `durableObjectsPeriodicGroups` → `sum { rowsWritten rowsRead duration }` (duration is in GB-s)
+  - `durableObjectsInvocationsAdaptiveGroups` → `sum { requests }`, by `type` (`hibernation` = WebSocket messages)
+  - `workersInvocationsAdaptive` → `sum { requests }`
+  - `durableObjectsSqlStorageGroups` → `max { storedBytes }`
+
 The **Log** tab records what was sent: number of paths and requests, bytes, the resulting revision, and
 how long the server took to confirm it.

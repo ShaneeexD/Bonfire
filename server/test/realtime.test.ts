@@ -195,6 +195,8 @@ describe("snapshot endpoint", () => {
     expect(stats.today.connects).toBe(1);
     expect(stats.today.rows).toBeGreaterThanOrEqual(1);
     expect(stats.connections).toBe(1);
+    expect(stats.limits).toEqual({ roomDailyWriteRows: 25000, maxRoomBytes: 50000000 });
+    expect(stats.resetsAt).toMatch(/T00:00:00\.000Z$/);
   });
 
   it("keeps most counters when the room sleeps with clients still connected", async () => {

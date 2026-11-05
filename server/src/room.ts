@@ -203,6 +203,9 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
       databaseBytes: this.ctx.storage.sql.databaseSize,
       connections: this.ctx.getWebSockets().length,
       writeQuotaUntil: this.quotaUntil > Date.now() ? new Date(this.quotaUntil).toISOString() : null,
+      // Limits the counters are measured against, so dashboards don't have to hard-code them.
+      limits: { roomDailyWriteRows: this.cfg.roomDailyWriteRows, maxRoomBytes: this.cfg.maxRoomBytes },
+      resetsAt: new Date(nextUtcMidnight()).toISOString(),
       today: this.stats.today(),
       days: this.stats.all(),
     });

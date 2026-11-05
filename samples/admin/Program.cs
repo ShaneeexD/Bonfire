@@ -25,6 +25,8 @@ internal sealed class AdminSettings
     public string Key = "dev-write-key";
     public string RootPath = "";
     public string Source = "local wrangler dev";
+    public string AccountId = "";
+    public string AnalyticsToken = "";
     public bool Connect;
     public string? Sql;
     public bool RunSql;
@@ -42,6 +44,11 @@ internal sealed class AdminSettings
             s.Url = File.ReadAllText(url).Trim();
             s.Key = writeKey;
             s.Source = "your live deployment (write key)";
+            // Optional, for the account-wide usage meter (both files are git-ignored).
+            var account = Path.Combine(dir.FullName, "server", ".cloudflare-account");
+            var token = Path.Combine(dir.FullName, "server", ".analytics-token");
+            if (File.Exists(account)) s.AccountId = File.ReadAllText(account).Trim();
+            if (File.Exists(token)) s.AnalyticsToken = File.ReadAllText(token).Trim();
             break;
         }
         string? Arg(string flag)
