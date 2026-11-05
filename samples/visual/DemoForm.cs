@@ -317,7 +317,7 @@ internal sealed class DemoForm : Form
         {
             _lastSend = DateTime.UtcNow;
             _lastSent = _pos;
-            _ = Timed(() => _db.Ref($"players/{_me}/pos").SetAsync(new { x = MathF.Round(_pos.X, 1), y = MathF.Round(_pos.Y, 1) }));
+            _ = Timed(() => _db.Ref($"players/{_me}/pos").SetAsync(new { x = Math.Round((double)_pos.X, 1), y = Math.Round((double)_pos.Y, 1) }));
         }
 
         // Others glide toward their latest reported position.

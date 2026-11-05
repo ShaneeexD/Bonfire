@@ -49,6 +49,8 @@ the numbers and sources.
 | [`client/`](client) | `FreeSync` C# library (`netstandard2.0` + `net10.0`, no dependencies), xUnit tests, optional serializer [adapters](client/adapters) |
 | [`samples/console/`](samples/console) | Two-instance console demo |
 | [`samples/unity/`](samples/unity) | MonoBehaviour example with `Dispatch()` |
+| [`samples/visual/`](samples/visual) | Windows demo: run it twice and watch players move, score and chat live |
+| [`samples/admin/`](samples/admin) | Windows admin editor: live tree editing, SQL (`SELECT`/`INSERT`/`UPDATE`/`DELETE`), batch submit as one atomic request |
 | [`docs/`](docs) | [DEPLOY](docs/DEPLOY.md) · [PROTOCOL](docs/PROTOCOL.md) · [SECURITY](docs/SECURITY.md) · [LIMITS](docs/LIMITS.md) · [DESIGN](docs/DESIGN.md) |
 
 ## Quick start
