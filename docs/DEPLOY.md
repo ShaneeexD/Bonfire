@@ -37,6 +37,14 @@ Wrangler prints the URL, e.g. `https://freesync.<your-subdomain>.workers.dev`. C
 `wss://freesync.<your-subdomain>.workers.dev`. Run the same command again to deploy changes.
 Connected clients stay connected across deploys.
 
+Save the URL to `server/.deployed-url` (git-ignored). The visual demo and the database app read it,
+together with the keys in `.deploy-keys.env`, so they connect to your live Worker without any
+arguments:
+
+```bash
+echo wss://freesync.<your-subdomain>.workers.dev > .deployed-url
+```
+
 Check it:
 
 ```bash
