@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 // A small SQL dialect over the JSON document. A "table" is any object in the document (players, chat,
 // rooms/lobby/players...): its children are rows, each row's key is the `key` column, and fields of

@@ -61,7 +61,7 @@ jobs:
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
-          name: freesync-${{ steps.version.outputs.value }}
+          name: bonfire-${{ steps.version.outputs.value }}
           path: |
             dist/*.zip
             dist/*.nupkg
@@ -81,13 +81,13 @@ jobs:
 
             | File | What |
             |---|---|
-            | `FreeSync-DatabaseEditor-*-win-x64.zip` | **Database editor** for Windows: browse and edit data, SQL, batch submit, usage meter. Unzip and run `FreeSyncAdmin.exe`; no .NET install needed. |
-            | `FreeSync-VisualDemo-*-win-x64.zip` | **Visual demo** for Windows: run `FreeSyncVisualDemo.exe` twice to watch two clients sync. |
-            | `FreeSync-Client-*.zip` | **Client library** `FreeSync.dll` for mods (netstandard2.0) and .NET apps (net10.0), plus serializer adapters. |
-            | `FreeSync.*.nupkg` | **NuGet package** for `dotnet add package FreeSync` (also on nuget.org when published there). |
+            | `Bonfire-DatabaseEditor-*-win-x64.zip` | **Database editor** for Windows: browse and edit data, SQL, batch submit, usage meter. Unzip and run `BonfireAdmin.exe`; no .NET install needed. |
+            | `Bonfire-VisualDemo-*-win-x64.zip` | **Visual demo** for Windows: run `BonfireVisualDemo.exe` twice to watch two clients sync. |
+            | `Bonfire-Client-*.zip` | **Client library** `Bonfire.dll` for mods (netstandard2.0) and .NET apps (net10.0), plus serializer adapters. |
+            | `Bonfire.*.nupkg` | **NuGet package** for `dotnet add package Bonfire` (also on nuget.org when published there). |
 
             The exes are not code-signed, so Windows SmartScreen may warn: choose **More info → Run anyway**.
-            You need your own FreeSync server first: see the README's "Deploy to Cloudflare".
+            You need your own Bonfire server first: see the README's "Deploy to Cloudflare".
 
       # Optional: publish the package to nuget.org. Add a repository secret named NUGET_API_KEY
       # (nuget.org → API Keys, scope "Push") to enable it; without the secret this step is skipped.

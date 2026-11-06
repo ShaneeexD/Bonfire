@@ -5,18 +5,18 @@
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <RootNamespace>FreeSync</RootNamespace>
-    <AssemblyName>FreeSync</AssemblyName>
+    <RootNamespace>Bonfire</RootNamespace>
+    <AssemblyName>Bonfire</AssemblyName>
     <Version>0.1.0</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Description>Firebase-style realtime JSON database client for FreeSync: a free server on Cloudflare's Workers plan (Durable Objects). Live subscriptions, optimistic writes, presence (onDisconnect), auto-reconnect and offline cache. One assembly, no dependencies; works in Unity/BepInEx/MelonLoader mods (netstandard2.0) and modern .NET.</Description>
+    <Description>Firebase-style realtime JSON database client for Bonfire: a free server on Cloudflare's Workers plan (Durable Objects). Live subscriptions, optimistic writes, presence (onDisconnect), auto-reconnect and offline cache. One assembly, no dependencies; works in Unity/BepInEx/MelonLoader mods (netstandard2.0) and modern .NET.</Description>
   </PropertyGroup>
 
   <!-- NuGet package. RepositoryUrl/PackageProjectUrl are passed in by the release workflow (it knows the GitHub URL). -->
   <PropertyGroup>
-    <PackageId>FreeSync</PackageId>
-    <Title>FreeSync realtime database client</Title>
+    <PackageId>Bonfire</PackageId>
+    <Title>Bonfire realtime database client</Title>
     <Authors>ShaneeexD</Authors>
     <PackageTags>realtime;database;json;firebase;websocket;cloudflare;durable-objects;unity;bepinex;melonloader;modding;multiplayer</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="FreeSync.Tests" />
+    <InternalsVisibleTo Include="Bonfire.Tests" />
   </ItemGroup>
 
 </Project>

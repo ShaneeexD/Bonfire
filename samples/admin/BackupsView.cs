@@ -1,4 +1,4 @@
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>The Backups tab: export/import, the automatic before-submit backups, and undo.</summary>
 internal sealed class BackupsView : UserControl

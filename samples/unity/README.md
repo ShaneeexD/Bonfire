@@ -1,6 +1,6 @@
 # Unity example
 
-[`FreeSyncExample.cs`](FreeSyncExample.cs) is a MonoBehaviour that:
+[`BonfireExample.cs`](BonfireExample.cs) is a MonoBehaviour that:
 
 - connects to a room with a per-install client token (stable `$cid`);
 - sends this GameObject's position to `players/<cid>/pos` (an **ephemeral** path in the example rules,
@@ -11,8 +11,8 @@
 
 ## Using it
 
-1. Build the client: `dotnet build client/FreeSync -c Release`. Take
-   `client/FreeSync/bin/Release/netstandard2.0/FreeSync.dll`.
+1. Build the client: `dotnet build client/Bonfire -c Release`. Take
+   `client/Bonfire/bin/Release/netstandard2.0/Bonfire.dll`.
 2. **Unity project:** put the DLL in `Assets/Plugins/` and the script anywhere under `Assets/`.
    **BepInEx / MelonLoader mod:** reference the DLL from your mod project and ship it next to your mod
    DLL in the plugins/Mods folder.
@@ -31,5 +31,5 @@
 - The file includes `#nullable enable` because it uses nullable annotations. Remove the `?`s if your
   Unity version's C# compiler complains.
 
-`compile-check/` builds this script against stub `UnityEngine` types and FreeSync's netstandard2.0 build,
+`compile-check/` builds this script against stub `UnityEngine` types and Bonfire's netstandard2.0 build,
 to catch API mistakes without Unity installed. It was not run inside the Unity editor.

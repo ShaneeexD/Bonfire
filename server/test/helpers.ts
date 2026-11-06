@@ -91,7 +91,7 @@ export class TestClient {
 
 export async function connect(room: string, opts: { key?: string; token?: string } = {}): Promise<{ client: TestClient; welcome: any }> {
   const headers: Record<string, string> = { Upgrade: "websocket", Authorization: `Bearer ${opts.key ?? WRITE_KEY}` };
-  if (opts.token) headers["X-FreeSync-Token"] = opts.token;
+  if (opts.token) headers["X-Bonfire-Token"] = opts.token;
   const res = await http(`/db/${room}?v=1`, { headers });
   expect(res.status).toBe(101);
   const ws = res.webSocket!;

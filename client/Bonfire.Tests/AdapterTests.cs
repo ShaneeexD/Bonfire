@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using FreeSync.Adapters;
-using FreeSync.Json;
+using Bonfire.Adapters;
+using Bonfire.Json;
 using Xunit;
 
-namespace FreeSync.Tests
+namespace Bonfire.Tests
 {
     public class AdapterTests
     {
@@ -27,8 +27,8 @@ namespace FreeSync.Tests
         public void RoundTripsThroughTheTreeModel(IJsonSerializer serializer)
         {
             var original = new Player { Name = "Ann", Score = 42, Items = { "sword" } };
-            // What FreeSync does on write: serialize, parse into its tree, normalise.
-            var tree = Internal.Tree.Normalize(FsJson.Parse(serializer.Serialize(original)));
+            // What Bonfire does on write: serialize, parse into its tree, normalise.
+            var tree = Internal.Tree.Normalize(BonfireJson.Parse(serializer.Serialize(original)));
             var snap = new DataSnapshot(new[] { "players", "ann" }, tree, 1, false, serializer);
             var back = snap.GetValue<Player>()!;
             Assert.Equal("Ann", back.Name);

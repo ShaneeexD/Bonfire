@@ -1,8 +1,8 @@
-using FreeSync.Json;
-using FreeSyncAdmin;
+using Bonfire.Json;
+using BonfireAdmin;
 using Xunit;
 
-namespace FreeSyncAdmin.Tests;
+namespace BonfireAdmin.Tests;
 
 public class UsageTests
 {
@@ -21,7 +21,7 @@ public class UsageTests
     [Fact]
     public void MetersCompareCountersWithRoomAndAccountLimits()
     {
-        var u = UsageModel.From(FsJson.Parse(Stats), Now);
+        var u = UsageModel.From(BonfireJson.Parse(Stats), Now);
         Assert.Equal("Room 'visual-demo' · 2026-11-05 (UTC) · resets in 5h 30m", u.Title);
 
         var budget = u.Headline;
@@ -43,7 +43,7 @@ public class UsageTests
     [Fact]
     public void OlderServersWithoutLimitsFallBackToDefaults()
     {
-        var u = UsageModel.From(FsJson.Parse("""{"room":"r","databaseBytes":0,"connections":0,"today":{"rows":5}}"""), Now);
+        var u = UsageModel.From(BonfireJson.Parse("""{"room":"r","databaseBytes":0,"connections":0,"today":{"rows":5}}"""), Now);
         Assert.Equal(25000, u.Headline.Max);
         Assert.Equal(50_000_000, Find(u, "Room storage").Max);
         Assert.Contains("resets in 5h 30m", u.Title); // next UTC midnight when the server doesn't say
@@ -54,7 +54,7 @@ public class UsageTests
     public void ExhaustedWriteQuotaIsExplained()
     {
         var json = Stats.Replace("\"writeQuotaUntil\":null", "\"writeQuotaUntil\":\"2026-11-06T00:00:00.000Z\"");
-        Assert.Contains("read-only until", UsageModel.From(FsJson.Parse(json), Now).Note);
+        Assert.Contains("read-only until", UsageModel.From(BonfireJson.Parse(json), Now).Note);
     }
 
     [Theory]
@@ -64,7 +64,7 @@ public class UsageTests
     public void BarColourFollowsTheFraction(double fraction, int red) => Assert.Equal(red, MeterBar.ColorFor(fraction).R);
 
     [Fact]
-    public void RejectsUnexpectedResponses() => Assert.Throws<FormatException>(() => UsageModel.From(FsJson.Parse("[1]"), Now));
+    public void RejectsUnexpectedResponses() => Assert.Throws<FormatException>(() => UsageModel.From(BonfireJson.Parse("[1]"), Now));
 
     // Shape of a real response from this account on 2026-11-05.
     private const string Analytics = """
@@ -80,7 +80,7 @@ public class UsageTests
     [Fact]
     public void AccountUsageAppliesBillingRulesAndSumsStorage()
     {
-        var u = AccountUsageModel.Parse(FsJson.Parse(Analytics));
+        var u = AccountUsageModel.Parse(BonfireJson.Parse(Analytics));
         Assert.Equal(22, u.WorkerRequests);
         Assert.Equal(21 + 332, u.DoRequests);          // hibernated WebSocket messages bill at 20:1 (6638/20 rounded up)
         Assert.Equal(6638 - 332, u.DoRequestsUnbilled);
@@ -98,8 +98,8 @@ public class UsageTests
     [Fact]
     public void AccountUsageReportsApiErrors()
     {
-        var e = Assert.Throws<FormatException>(() => AccountUsageModel.Parse(FsJson.Parse("""{"data":null,"errors":[{"message":"not authorized for that account"}]}""")));
+        var e = Assert.Throws<FormatException>(() => AccountUsageModel.Parse(BonfireJson.Parse("""{"data":null,"errors":[{"message":"not authorized for that account"}]}""")));
         Assert.Contains("not authorized for that account", e.Message);
-        Assert.Throws<FormatException>(() => AccountUsageModel.Parse(FsJson.Parse("""{"data":{"viewer":{"accounts":[]}},"errors":null}""")));
+        Assert.Throws<FormatException>(() => AccountUsageModel.Parse(BonfireJson.Parse("""{"data":{"viewer":{"accounts":[]}},"errors":null}""")));
     }
 }

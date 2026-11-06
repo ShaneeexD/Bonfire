@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSync
+namespace Bonfire
 {
     /// <summary>
     /// Creates and reads signed player identity tokens (standard HS256 JWTs). A trusted backend that knows the
     /// server's <c>IDENTITY_SECRET</c> issues a token per player; the client passes it in
-    /// <see cref="FreeSyncOptions.IdentityToken"/>, and the server then treats the player id as verified
+    /// <see cref="BonfireOptions.IdentityToken"/>, and the server then treats the player id as verified
     /// (<c>$uid</c> in rules).
     /// </summary>
     /// <remarks>
@@ -18,7 +18,7 @@ namespace FreeSync
     /// sign tokens for any player. Any JWT library can make compatible tokens:
     /// <c>{"sub": playerId, "exp": unixSeconds}</c>, optional <c>"room"</c>, signed with HS256.
     /// </remarks>
-    public static class FreeSyncIdentity
+    public static class BonfireIdentity
     {
         private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -50,7 +50,7 @@ namespace FreeSync
             };
             if (!string.IsNullOrEmpty(room)) claims["room"] = room;
             var header = Base64Url(Encoding.UTF8.GetBytes("{\"alg\":\"HS256\",\"typ\":\"JWT\"}"));
-            var payload = Base64Url(Encoding.UTF8.GetBytes(FsJson.Serialize(claims)));
+            var payload = Base64Url(Encoding.UTF8.GetBytes(BonfireJson.Serialize(claims)));
             byte[] signature;
             using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
                 signature = hmac.ComputeHash(Encoding.UTF8.GetBytes(header + "." + payload));
@@ -73,7 +73,7 @@ namespace FreeSync
             {
                 var parts = token.Split('.');
                 if (parts.Length != 3) return null;
-                return FsJson.Parse(Encoding.UTF8.GetString(FromBase64Url(parts[1]))) is Dictionary<string, object?> d && d.TryGetValue(name, out var v) ? v : null;
+                return BonfireJson.Parse(Encoding.UTF8.GetString(FromBase64Url(parts[1]))) is Dictionary<string, object?> d && d.TryGetValue(name, out var v) ? v : null;
             }
             catch (FormatException)
             {

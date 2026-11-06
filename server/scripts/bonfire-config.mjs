@@ -7,14 +7,14 @@ import { dirname, join } from "node:path";
 const serverDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 export function loadConfig() {
-  let url = process.env.FREESYNC_URL;
-  let key = process.env.FREESYNC_WRITE_KEY;
+  let url = process.env.BONFIRE_URL;
+  let key = process.env.BONFIRE_WRITE_KEY;
   const urlFile = join(serverDir, ".deployed-url");
   const keysFile = join(serverDir, ".deploy-keys.env");
   if (!url && existsSync(urlFile)) url = readFileSync(urlFile, "utf8").replace(/^﻿/, "").trim();
   if (!key && existsSync(keysFile)) key = readFileSync(keysFile, "utf8").match(/^WRITE_KEY=(.*)$/m)?.[1]?.trim();
   if (!url || !key) {
-    fail("Set FREESYNC_URL and FREESYNC_WRITE_KEY, or create server/.deployed-url and server/.deploy-keys.env (see README).");
+    fail("Set BONFIRE_URL and BONFIRE_WRITE_KEY, or create server/.deployed-url and server/.deploy-keys.env (see README).");
   }
   const http = url.replace(/^ws(s?):\/\//, "http$1://").replace(/\/+$/, "");
   return { http, ws: http.replace(/^http/, "ws"), key };

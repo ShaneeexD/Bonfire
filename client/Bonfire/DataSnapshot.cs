@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FreeSync.Internal;
-using FreeSync.Json;
+using Bonfire.Internal;
+using Bonfire.Json;
 
-namespace FreeSync
+namespace Bonfire
 {
     /// <summary>
     /// An immutable view of the data at a path at one moment. The raw <see cref="Value"/> is a JSON tree made of
@@ -49,7 +49,7 @@ namespace FreeSync
             if (Value == null) return default;
             if (Value is T t && !(Value is Dictionary<string, object?>) && !(Value is List<object?>)) return t;
             if (_serializer is BuiltInJsonSerializer) return (T?)BuiltInJsonSerializer.FromTree(Value, typeof(T));
-            return _serializer.Deserialize<T>(FsJson.Serialize(Value));
+            return _serializer.Deserialize<T>(BonfireJson.Serialize(Value));
         }
 
         /// <summary>The snapshot of a child path (which may contain slashes).</summary>
@@ -72,7 +72,7 @@ namespace FreeSync
         public int ChildrenCount => Value is Dictionary<string, object?> d ? d.Count : 0;
 
         /// <summary>The value as compact JSON text.</summary>
-        public string ToJson() => FsJson.Serialize(Value);
+        public string ToJson() => BonfireJson.Serialize(Value);
 
         /// <inheritdoc />
         public override string ToString() => $"{Path}: {ToJson()}";

@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\client\FreeSync\FreeSync.csproj" />
+    <ProjectReference Include="..\..\client\Bonfire\Bonfire.csproj" />
   </ItemGroup>
 
 </Project>

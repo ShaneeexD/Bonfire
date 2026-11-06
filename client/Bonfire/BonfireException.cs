@@ -1,9 +1,9 @@
 using System;
 
-namespace FreeSync
+namespace Bonfire
 {
     /// <summary>An operation was refused by the server or could not be completed.</summary>
-    public sealed class FreeSyncException : Exception
+    public sealed class BonfireException : Exception
     {
         /// <summary>
         /// The error code, e.g. <c>permission_denied</c>, <c>rate_limited</c>, <c>write_quota</c>, <c>room_quota</c>,
@@ -12,7 +12,7 @@ namespace FreeSync
         public string Code { get; }
 
         /// <summary>Creates an exception with a code and message.</summary>
-        public FreeSyncException(string code, string message) : base(message) => Code = code;
+        public BonfireException(string code, string message) : base(message) => Code = code;
 
         /// <summary>True for errors caused by an exhausted daily quota (they clear at 00:00 UTC).</summary>
         public bool IsQuota => Code == "write_quota" || Code == "room_quota" || Code == "quota";

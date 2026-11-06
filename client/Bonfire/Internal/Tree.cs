@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     /// <summary>
     /// Operations on JSON trees (Dictionary / List / scalars). Trees handed to user code are never mutated:

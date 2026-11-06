@@ -9,7 +9,7 @@ import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fail, parseArgs } from "./freesync-config.mjs";
+import { fail, parseArgs } from "./bonfire-config.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const player = args.player;

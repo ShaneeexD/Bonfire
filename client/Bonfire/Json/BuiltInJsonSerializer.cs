@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
-namespace FreeSync.Json
+namespace Bonfire.Json
 {
     /// <summary>
     /// The default serializer. Handles primitives, enums (as names), strings, <see cref="DateTime"/>, <see cref="Guid"/>,
@@ -23,12 +23,12 @@ namespace FreeSync.Json
         public static readonly BuiltInJsonSerializer Instance = new BuiltInJsonSerializer();
 
         /// <inheritdoc />
-        public string Serialize(object? value) => FsJson.Serialize(ToTree(value, 0));
+        public string Serialize(object? value) => BonfireJson.Serialize(ToTree(value, 0));
 
         /// <inheritdoc />
-        public object? Deserialize(string json, Type type) => FromTree(FsJson.Parse(json), type);
+        public object? Deserialize(string json, Type type) => FromTree(BonfireJson.Parse(json), type);
 
-        /// <summary>Converts any supported .NET value into the plain tree used by <see cref="FsJson"/>.</summary>
+        /// <summary>Converts any supported .NET value into the plain tree used by <see cref="BonfireJson"/>.</summary>
         public static object? ToTree(object? value, int depth = 0)
         {
             if (depth > 64) throw new FormatException("value nested too deeply (cyclic reference?)");
@@ -70,7 +70,7 @@ namespace FreeSync.Json
             return result;
         }
 
-        /// <summary>Converts a plain tree (as produced by <see cref="FsJson.Parse"/>) to an instance of <paramref name="type"/>.</summary>
+        /// <summary>Converts a plain tree (as produced by <see cref="BonfireJson.Parse"/>) to an instance of <paramref name="type"/>.</summary>
         public static object? FromTree(object? tree, Type type)
         {
             var underlying = Nullable.GetUnderlyingType(type);
@@ -80,7 +80,7 @@ namespace FreeSync.Json
             if (type == typeof(object)) return tree;
             if (type.IsInstanceOfType(tree) && !(tree is IDictionary) && !(tree is IList)) return tree;
 
-            if (type == typeof(string)) return tree is string s ? s : FsJson.Serialize(tree);
+            if (type == typeof(string)) return tree is string s ? s : BonfireJson.Serialize(tree);
             if (type.IsEnum)
                 return tree is string es ? Enum.Parse(type, es, true) : Enum.ToObject(type, Convert.ToInt64(tree, CultureInfo.InvariantCulture));
             if (type == typeof(Guid)) return Guid.Parse((string)tree);

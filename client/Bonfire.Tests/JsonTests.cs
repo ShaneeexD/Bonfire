@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using FreeSync.Internal;
-using FreeSync.Json;
+using Bonfire.Internal;
+using Bonfire.Json;
 using Xunit;
 
-namespace FreeSync.Tests
+namespace Bonfire.Tests
 {
     public class JsonTests
     {
@@ -12,22 +12,22 @@ namespace FreeSync.Tests
         public void ParsesAndWritesRoundTrip()
         {
             const string json = "{\"a\":1,\"b\":-2.5,\"c\":\"x\\\"y\\n\\u00e9\",\"d\":[true,false,null],\"e\":{}}";
-            var tree = FsJson.Parse(json);
+            var tree = BonfireJson.Parse(json);
             var obj = Assert.IsType<Dictionary<string, object?>>(tree);
             Assert.Equal(1L, obj["a"]);
             Assert.Equal(-2.5, obj["b"]);
             Assert.Equal("x\"y\né", obj["c"]);
             Assert.Equal(new List<object?> { true, false, null }, obj["d"]);
-            Assert.Equal(json.Replace("\\u00e9", "é"), FsJson.Serialize(tree));
+            Assert.Equal(json.Replace("\\u00e9", "é"), BonfireJson.Serialize(tree));
         }
 
         [Fact]
         public void LargeIntegersStayExactAndDoublesRoundTrip()
         {
-            Assert.Equal(9007199254740993L, FsJson.Parse("9007199254740993"));
-            Assert.Equal(1e300, FsJson.Parse("1e300"));
-            Assert.Equal("0.1", FsJson.Serialize(0.1));
-            Assert.Equal("3", FsJson.Serialize(3.0));
+            Assert.Equal(9007199254740993L, BonfireJson.Parse("9007199254740993"));
+            Assert.Equal(1e300, BonfireJson.Parse("1e300"));
+            Assert.Equal("0.1", BonfireJson.Serialize(0.1));
+            Assert.Equal("3", BonfireJson.Serialize(3.0));
         }
 
         [Theory]
@@ -38,10 +38,10 @@ namespace FreeSync.Tests
         [InlineData("tru")]
         [InlineData("\"unterminated")]
         [InlineData("1 2")]
-        public void RejectsInvalidJson(string json) => Assert.Throws<FormatException>(() => FsJson.Parse(json));
+        public void RejectsInvalidJson(string json) => Assert.Throws<FormatException>(() => BonfireJson.Parse(json));
 
         [Fact]
-        public void RejectsNonFiniteNumbers() => Assert.Throws<FormatException>(() => FsJson.Serialize(double.NaN));
+        public void RejectsNonFiniteNumbers() => Assert.Throws<FormatException>(() => BonfireJson.Serialize(double.NaN));
 
         public enum Team { Red, Blue }
 
@@ -89,7 +89,7 @@ namespace FreeSync.Tests
             Assert.Null(BuiltInJsonSerializer.FromTree(null, typeof(int?)));
             Assert.Equal(0, BuiltInJsonSerializer.FromTree(null, typeof(int)));
             // Firebase-style objects with numeric keys can be read as lists, in numeric order.
-            var tree = FsJson.Parse("{\"10\":\"c\",\"2\":\"b\",\"1\":\"a\"}");
+            var tree = BonfireJson.Parse("{\"10\":\"c\",\"2\":\"b\",\"1\":\"a\"}");
             Assert.Equal(new List<string> { "a", "b", "c" }, BuiltInJsonSerializer.FromTree(tree, typeof(List<string>)));
         }
 
@@ -107,13 +107,13 @@ namespace FreeSync.Tests
         [Fact]
         public void TreeSetInCopiesAndPrunes()
         {
-            var root = (Dictionary<string, object?>)FsJson.Parse("{\"a\":{\"b\":1,\"c\":2},\"z\":{\"y\":1}}")!;
+            var root = (Dictionary<string, object?>)BonfireJson.Parse("{\"a\":{\"b\":1,\"c\":2},\"z\":{\"y\":1}}")!;
             var next = (Dictionary<string, object?>)Tree.SetIn(root, new[] { "a", "b" }, null)!;
-            Assert.Equal("{\"a\":{\"c\":2},\"z\":{\"y\":1}}", FsJson.Serialize(next));
+            Assert.Equal("{\"a\":{\"c\":2},\"z\":{\"y\":1}}", BonfireJson.Serialize(next));
             Assert.Equal(1L, ((Dictionary<string, object?>)root["a"]!)["b"]); // original untouched
             Assert.Same(root["z"], next["z"]);
-            Assert.Null(Tree.SetIn(FsJson.Parse("{\"a\":{\"b\":1}}"), new[] { "a", "b" }, null));
-            Assert.Null(Tree.Normalize(FsJson.Parse("{\"a\":null,\"b\":{},\"c\":[]}")));
+            Assert.Null(Tree.SetIn(BonfireJson.Parse("{\"a\":{\"b\":1}}"), new[] { "a", "b" }, null));
+            Assert.Null(Tree.Normalize(BonfireJson.Parse("{\"a\":null,\"b\":{},\"c\":[]}")));
         }
 
         [Fact]

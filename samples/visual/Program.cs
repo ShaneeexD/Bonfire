@@ -1,15 +1,15 @@
-// FreeSync visual demo: run two (or more) copies and watch them sync in real time.
+// Bonfire visual demo: run two (or more) copies and watch them sync in real time.
 //
 //   dotnet run                         (or run-two.ps1 to open two windows)
 //   dotnet run -- --name Ann --auto    (options: --url --room --key --name --auto --autoconnect)
 //
 // Settings, later ones winning: built-in defaults (`wrangler dev` on 127.0.0.1:8787), what you used last time
-// (%APPDATA%\FreeSync\visual-demo.json), this checkout's server/.deployed-url + server/.deploy-keys.env
+// (%APPDATA%\Bonfire\visual-demo.json), this checkout's server/.deployed-url + server/.deploy-keys.env
 // (git-ignored, created when you deployed), then command-line options.
 
-using FreeSyncSamples;
+using BonfireSamples;
 
-namespace FreeSyncVisualDemo;
+namespace BonfireVisualDemo;
 
 internal static class Program
 {

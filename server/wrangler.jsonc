@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "freesync",
+  "name": "bonfire",
   "main": "src/index.ts",
   // Must be >= 2026-04-07 so the runtime answers WebSocket Close frames for us.
   "compatibility_date": "2026-10-01",

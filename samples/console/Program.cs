@@ -1,4 +1,4 @@
-// FreeSync console demo: run two copies and watch them sync.
+// Bonfire console demo: run two copies and watch them sync.
 //
 //   dotnet run -- --name alice
 //   dotnet run -- --name bob
@@ -6,7 +6,7 @@
 // Commands: say <text> | score <n> | move <x> <y> | quit
 // Options:  --url ws://127.0.0.1:8787  --room demo  --key dev-read-key  --script (run a fixed scenario and exit)
 
-using FreeSync;
+using Bonfire;
 
 var name = Arg("--name") ?? "player";
 var url = Arg("--url") ?? "ws://127.0.0.1:8787";
@@ -15,10 +15,10 @@ var key = Arg("--key") ?? "dev-read-key";
 var script = args.Contains("--script");
 
 // A stable secret token per player name, so the client id survives restarts.
-var tokenFile = Path.Combine(Path.GetTempPath(), "freesync-demo", name + ".token");
-var db = new FreeSyncClient(url, room, key, new FreeSyncOptions
+var tokenFile = Path.Combine(Path.GetTempPath(), "bonfire-demo", name + ".token");
+var db = new BonfireClient(url, room, key, new BonfireOptions
 {
-    ClientToken = FreeSyncClient.LoadOrCreateToken(tokenFile),
+    ClientToken = BonfireClient.LoadOrCreateToken(tokenFile),
     EventDispatch = EventDispatchMode.Queued, // callbacks run on our loop below, like Unity's Update()
     Log = msg => { if (args.Contains("--verbose")) Console.WriteLine(msg); },
 });
@@ -54,7 +54,7 @@ async Task SetPresence()
         await db.Ref($"presence/{me}").SetAsync(name);
         await db.Ref($"players/{me}/name").SetAsync(name);
     }
-    catch (FreeSyncException e)
+    catch (BonfireException e)
     {
         Print($"presence failed: {e.Code} {e.Message}");
     }
@@ -84,7 +84,7 @@ async Task Run(string line)
                 break;
         }
     }
-    catch (FreeSyncException e)
+    catch (BonfireException e)
     {
         Print($"refused: {e.Code} {e.Message}");
     }
@@ -105,7 +105,7 @@ if (script)
     // Writing outside our own subtree must be refused by the server's rules.
     await Run("noop");
     try { await db.Ref("players/someone-else/score").SetAsync(1); }
-    catch (FreeSyncException e) { Print($"as expected, writing another player's data was refused: {e.Code}"); }
+    catch (BonfireException e) { Print($"as expected, writing another player's data was refused: {e.Code}"); }
     for (var i = 0; i < 25; i++) { db.Dispatch(); await Task.Delay(20); }
     await db.CloseAsync();
     db.Dispatch();

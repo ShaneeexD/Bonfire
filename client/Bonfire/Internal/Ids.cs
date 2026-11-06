@@ -2,7 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     internal static class Ids
     {

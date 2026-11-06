@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FreeSync.AdminEditor.csproj" />
+    <ProjectReference Include="..\Bonfire.AdminEditor.csproj" />
   </ItemGroup>
 
 </Project>

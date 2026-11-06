@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     /// <summary>Minimal text-WebSocket abstraction so the client logic can be tested without a network.</summary>
     internal interface ISocket : IDisposable

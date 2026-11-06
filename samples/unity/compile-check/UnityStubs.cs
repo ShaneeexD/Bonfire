@@ -1,5 +1,5 @@
-// Minimal stand-ins for the UnityEngine types FreeSyncExample.cs uses, so the sample can be
-// compile-checked against the netstandard2.0 FreeSync build without installing Unity.
+// Minimal stand-ins for the UnityEngine types BonfireExample.cs uses, so the sample can be
+// compile-checked against the netstandard2.0 Bonfire build without installing Unity.
 // They do nothing at runtime. Do not ship them.
 #pragma warning disable CS1591
 namespace UnityEngine

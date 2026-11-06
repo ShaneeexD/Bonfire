@@ -6,13 +6,13 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>FreeSyncAdmin</AssemblyName>
-    <RootNamespace>FreeSyncAdmin</RootNamespace>
+    <AssemblyName>BonfireAdmin</AssemblyName>
+    <RootNamespace>BonfireAdmin</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Tests/**" />
-    <ProjectReference Include="..\..\client\FreeSync\FreeSync.csproj" />
+    <ProjectReference Include="..\..\client\Bonfire\Bonfire.csproj" />
     <Compile Include="..\shared\SavedSettings.cs" Link="SavedSettings.cs" />
   </ItemGroup>
 

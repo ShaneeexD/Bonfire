@@ -2,20 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using FreeSync.Internal;
+using Bonfire.Internal;
 
-namespace FreeSync
+namespace Bonfire
 {
     /// <summary>
     /// A location in the room's JSON document. Cheap to create; holds no state of its own.
-    /// Obtain one with <see cref="FreeSyncClient.Ref"/> or <see cref="Child"/>.
+    /// Obtain one with <see cref="BonfireClient.Ref"/> or <see cref="Child"/>.
     /// </summary>
     public sealed class DatabaseReference
     {
-        private readonly FreeSyncClient _client;
+        private readonly BonfireClient _client;
         internal readonly string[] Segments;
 
-        internal DatabaseReference(FreeSyncClient client, string[] segments)
+        internal DatabaseReference(BonfireClient client, string[] segments)
         {
             _client = client;
             Segments = segments;
@@ -43,7 +43,7 @@ namespace FreeSync
         /// <summary>
         /// Replaces the value here (null deletes). Listeners see the change at once; the task completes when the server
         /// confirms it, with the room revision that contains it. If the server refuses, listeners revert and the task fails with
-        /// <see cref="FreeSyncException"/>. While offline, writes queue and are sent after reconnecting.
+        /// <see cref="BonfireException"/>. While offline, writes queue and are sent after reconnecting.
         /// </summary>
         public Task<long> SetAsync(object? value) => _client.Write("set", Segments, _client.ToTree(value));
 
@@ -58,11 +58,11 @@ namespace FreeSync
 
         /// <summary>
         /// Calls <paramref name="onValue"/> with the value here now (or as soon as it is known) and after every change.
-        /// Dispose the result to stop listening. Callbacks run according to <see cref="FreeSyncOptions.EventDispatch"/>.
+        /// Dispose the result to stop listening. Callbacks run according to <see cref="BonfireOptions.EventDispatch"/>.
         /// </summary>
         /// <param name="onValue">Receives each new snapshot.</param>
-        /// <param name="onError">Optional; receives a <see cref="FreeSyncException"/> if the server refuses the subscription.</param>
-        public IDisposable OnValue(Action<DataSnapshot> onValue, Action<FreeSyncException>? onError = null) =>
+        /// <param name="onError">Optional; receives a <see cref="BonfireException"/> if the server refuses the subscription.</param>
+        public IDisposable OnValue(Action<DataSnapshot> onValue, Action<BonfireException>? onError = null) =>
             _client.Listen(Segments, onValue, onError);
 
         /// <summary>
@@ -84,10 +84,10 @@ namespace FreeSync
     /// </summary>
     public sealed class OnDisconnectReference
     {
-        private readonly FreeSyncClient _client;
+        private readonly BonfireClient _client;
         private readonly string[] _path;
 
-        internal OnDisconnectReference(FreeSyncClient client, string[] path)
+        internal OnDisconnectReference(BonfireClient client, string[] path)
         {
             _client = client;
             _path = path;

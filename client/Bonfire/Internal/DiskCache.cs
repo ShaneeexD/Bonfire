@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     /// <summary>Persists the latest value and revision of subscribed paths for cold starts.</summary>
     internal sealed class DiskCache
@@ -20,7 +20,7 @@ namespace FreeSync.Internal
         {
             _log = log;
             var safe = new string((host + "_" + room).Select(c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_').ToArray());
-            _file = Path.Combine(directory, "freesync_" + safe + ".json");
+            _file = Path.Combine(directory, "bonfire_" + safe + ".json");
             Load();
         }
 
@@ -52,7 +52,7 @@ namespace FreeSync.Internal
             try
             {
                 if (!File.Exists(_file)) return;
-                if (!(FsJson.Parse(File.ReadAllText(_file)) is Dictionary<string, object?> root)) return;
+                if (!(BonfireJson.Parse(File.ReadAllText(_file)) is Dictionary<string, object?> root)) return;
                 if (!(root.TryGetValue("paths", out var paths) && paths is Dictionary<string, object?> map)) return;
                 foreach (var kv in map)
                 {
@@ -75,7 +75,7 @@ namespace FreeSync.Internal
                 var map = new Dictionary<string, object?>();
                 foreach (var kv in _entries)
                     map[kv.Key] = new Dictionary<string, object?> { ["rev"] = kv.Value.Rev, ["v"] = kv.Value.Value };
-                var text = FsJson.Serialize(new Dictionary<string, object?> { ["version"] = 1L, ["paths"] = map });
+                var text = BonfireJson.Serialize(new Dictionary<string, object?> { ["version"] = 1L, ["paths"] = map });
                 Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
                 var tmp = _file + ".tmp";
                 File.WriteAllText(tmp, text);

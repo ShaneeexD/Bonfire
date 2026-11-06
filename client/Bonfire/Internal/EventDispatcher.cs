@@ -2,7 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     /// <summary>Delivers user callbacks according to <see cref="EventDispatchMode"/>.</summary>
     internal sealed class EventDispatcher

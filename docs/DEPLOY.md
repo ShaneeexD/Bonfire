@@ -1,4 +1,4 @@
-# Deploying FreeSync
+# Deploying Bonfire
 
 Everything here runs on Cloudflare's **free** Workers plan. You need a Cloudflare account and
 Node.js 18 or newer.
@@ -33,8 +33,8 @@ To change a key later: `npx wrangler secret put READ_KEY` (or `WRITE_KEY`).
 npm run deploy
 ```
 
-Wrangler prints the URL, e.g. `https://freesync.<your-subdomain>.workers.dev`. Clients connect to
-`wss://freesync.<your-subdomain>.workers.dev`. Run the same command again to deploy changes.
+Wrangler prints the URL, e.g. `https://bonfire.<your-subdomain>.workers.dev`. Clients connect to
+`wss://bonfire.<your-subdomain>.workers.dev`. Run the same command again to deploy changes.
 Connected clients stay connected across deploys.
 
 Save the URL to `server/.deployed-url` (git-ignored). The visual demo and the database app read it,
@@ -42,15 +42,15 @@ together with the keys in `.deploy-keys.env`, so they connect to your live Worke
 arguments:
 
 ```bash
-echo wss://freesync.<your-subdomain>.workers.dev > .deployed-url
+echo wss://bonfire.<your-subdomain>.workers.dev > .deployed-url
 ```
 
 Check it:
 
 ```bash
-curl https://freesync.<your-subdomain>.workers.dev/
-curl "https://freesync.<your-subdomain>.workers.dev/db/global/snapshot?path=&key=<READ_KEY>"
-curl "https://freesync.<your-subdomain>.workers.dev/db/global/stats?key=<WRITE_KEY>"
+curl https://bonfire.<your-subdomain>.workers.dev/
+curl "https://bonfire.<your-subdomain>.workers.dev/db/global/snapshot?path=&key=<READ_KEY>"
+curl "https://bonfire.<your-subdomain>.workers.dev/db/global/stats?key=<WRITE_KEY>"
 ```
 
 ## Configuration
@@ -111,7 +111,7 @@ Cloudflare's quotas.
 
 ```bash
 cd server && npm test
-cd client && dotnet test --project FreeSync.Tests/FreeSync.Tests.csproj
+cd client && dotnet test --project Bonfire.Tests/Bonfire.Tests.csproj
 ```
 
 ## Snapshot caching on workers.dev
@@ -143,7 +143,7 @@ npm run restore -- <file> --room global-copy --yes      # or restore into anothe
 ```
 
 - **Where the scripts connect:** they use `server/.deployed-url` and `server/.deploy-keys.env`. Set
-  `FREESYNC_URL` and `FREESYNC_WRITE_KEY` instead, to run them anywhere.
+  `BONFIRE_URL` and `BONFIRE_WRITE_KEY` instead, to run them anywhere.
 - **What's included:** backups hold stored data only; ephemeral values such as positions aren't
   included. A backup reads one snapshot of up to 8 MB (`MAX_SNAPSHOT_BYTES`); back up big rooms per
   path with `--path`.
@@ -155,7 +155,7 @@ npm run restore -- <file> --room global-copy --yes      # or restore into anothe
 **Daily backups on Windows** (Task Scheduler), run once in PowerShell:
 
 ```powershell
-schtasks /Create /SC DAILY /ST 04:00 /TN "FreeSync backup" /TR "cmd /c cd /d D:\path\to\repo\server && npm run backup -- --room global"
+schtasks /Create /SC DAILY /ST 04:00 /TN "Bonfire backup" /TR "cmd /c cd /d D:\path\to\repo\server && npm run backup -- --room global"
 ```
 
 **On Linux or macOS** (cron), add a line with `crontab -e`:

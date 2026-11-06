@@ -1,8 +1,8 @@
-using FreeSync.Json;
-using FreeSyncAdmin;
+using Bonfire.Json;
+using BonfireAdmin;
 using Xunit;
 
-namespace FreeSyncAdmin.Tests;
+namespace BonfireAdmin.Tests;
 
 public class SqlTests
 {
@@ -13,12 +13,12 @@ public class SqlTests
         public readonly ChangeSet Changes = new();
         private int _n;
 
-        public Doc(string json) => Tree = FsJson.Parse(json);
+        public Doc(string json) => Tree = BonfireJson.Parse(json);
 
         public object? Read(string[] path) => JsonUtil.GetIn(Changes.ApplyTo(Tree), path);
         public void Write(string[] path, object? value) => Changes.Add(path, value);
         public string NewKey() => $"k{++_n:D3}";
-        public string Json => FsJson.Serialize(Changes.ApplyTo(Tree));
+        public string Json => BonfireJson.Serialize(Changes.ApplyTo(Tree));
     }
 
     private const string Players = """
@@ -162,11 +162,11 @@ public class SqlTests
         var cs = new ChangeSet();
         cs.Add(new[] { "players", "a", "score" }, 1L);
         cs.Add(new[] { "players", "b", "score" }, 2L);
-        cs.Add(new[] { "players", "a" }, FsJson.Parse("{\"name\":\"Ann\"}")); // replaces the deeper change
+        cs.Add(new[] { "players", "a" }, BonfireJson.Parse("{\"name\":\"Ann\"}")); // replaces the deeper change
         cs.Add(new[] { "players", "a", "score" }, 9L);                          // folds into the ancestor
         cs.Add(new[] { "chat" }, null);
         Assert.Equal(new[] { "players/b/score", "players/a", "chat" }, cs.Entries.Select(e => JsonUtil.Join(e.Path)));
-        Assert.Equal("{\"name\":\"Ann\",\"score\":9}", FsJson.Serialize(cs.Entries[1].Value));
+        Assert.Equal("{\"name\":\"Ann\",\"score\":9}", BonfireJson.Serialize(cs.Entries[1].Value));
         var frames = cs.ToFrames();
         Assert.Single(frames);
         Assert.Equal(3, frames[0].Paths.Count);
@@ -183,7 +183,7 @@ public class SqlTests
         var frames = cs.ToFrames(maxBytes: 56_000);
         Assert.True(frames.Count >= 2);
         Assert.Equal(50, frames.Sum(f => f.Paths.Count));
-        Assert.All(frames, f => Assert.True(FsJson.Serialize(f.Paths).Length < 60_000));
+        Assert.All(frames, f => Assert.True(BonfireJson.Serialize(f.Paths).Length < 60_000));
     }
 
     /// <summary>A room-sized value: 300 players with nested data, ~400 KB.</summary>
@@ -207,14 +207,14 @@ public class SqlTests
     public void OversizedValuesAreSplitIntoFramesWithTheSameResult(string target)
     {
         var path = JsonUtil.ParsePath(target);
-        var existing = FsJson.Parse("""{"stale":1,"players":{"old":{"x":1}},"rooms":{"a":{"stale":true},"b":{"keep":1}}}""");
+        var existing = BonfireJson.Parse("""{"stale":1,"players":{"old":{"x":1}},"rooms":{"a":{"stale":true},"b":{"keep":1}}}""");
         var cs = new ChangeSet();
         cs.Add(path, BigRoom());
 
         var frames = cs.ToFrames(maxBytes: 56_000);
         Assert.True(frames.Count > 5);
         Assert.All(frames, f => Assert.True(
-            System.Text.Encoding.UTF8.GetByteCount(f.SetsRoot ? FsJson.Serialize(f.RootValue) : FsJson.Serialize(f.Paths)) < 60_000));
+            System.Text.Encoding.UTF8.GetByteCount(f.SetsRoot ? BonfireJson.Serialize(f.RootValue) : BonfireJson.Serialize(f.Paths)) < 60_000));
 
         // Sending the frames in order must give exactly what the single big write would have.
         var viaFrames = frames.Aggregate(existing, (tree, f) => f.ApplyTo(tree));
@@ -230,9 +230,9 @@ public class SqlTests
     /// <summary>JSON with object keys sorted, so trees compare by content (key order carries no meaning).</summary>
     private static string Canonical(object? v) => v switch
     {
-        Dictionary<string, object?> d => "{" + string.Join(",", d.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => FsJson.Serialize(kv.Key) + ":" + Canonical(kv.Value))) + "}",
+        Dictionary<string, object?> d => "{" + string.Join(",", d.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => BonfireJson.Serialize(kv.Key) + ":" + Canonical(kv.Value))) + "}",
         List<object?> l => "[" + string.Join(",", l.Select(Canonical)) + "]",
-        _ => FsJson.Serialize(v),
+        _ => BonfireJson.Serialize(v),
     };
 
     [Fact]
@@ -247,10 +247,10 @@ public class SqlTests
     [Fact]
     public void BackupsRoundTripAndUndoABatch()
     {
-        var server = FsJson.Parse("""{"players":{"a":{"score":5},"b":{"score":7}},"motd":"hi"}""");
+        var server = BonfireJson.Parse("""{"players":{"a":{"score":5},"b":{"score":7}},"motd":"hi"}""");
         var batch = new ChangeSet();
         batch.Add(new[] { "players", "a", "score" }, 50L);
-        batch.Add(new[] { "players", "c" }, FsJson.Parse("""{"score":1}"""));
+        batch.Add(new[] { "players", "c" }, BonfireJson.Parse("""{"score":1}"""));
         batch.Add(new[] { "motd" }, null);
 
         var before = BackupFile.BeforeChanges(batch, p => JsonUtil.GetIn(server, p), "lobby", 42, "test");
@@ -262,19 +262,28 @@ public class SqlTests
 
         var after = batch.ApplyTo(server);
         var undone = reloaded.ToChangeSet().ApplyTo(after);
-        Assert.Equal(FsJson.Serialize(server), FsJson.Serialize(undone));  // restoring the backup undoes the batch
+        Assert.Equal(BonfireJson.Serialize(server), BonfireJson.Serialize(undone));  // restoring the backup undoes the batch
+    }
+
+    [Fact]
+    public void BackupsFromBeforeTheRenameStillRestore()
+    {
+        var legacy = """{"format":"freesync-backup","version":1,"room":"lobby","kind":"export","entries":[{"path":"players","value":{"a":1}}]}""";
+        var b = BackupFile.Parse(legacy, new[] { "would-be-plain-json" });
+        Assert.Equal(BackupFile.KindExport, b.Kind);
+        Assert.Equal("{\"players\":{\"a\":1}}", BonfireJson.Serialize(b.ToChangeSet().ApplyTo(null)));
     }
 
     [Fact]
     public void ExportsCanBeRestoredElsewhereAndPlainJsonIsAccepted()
     {
-        var export = new BackupFile("lobby", BackupFile.KindExport, DateTime.UtcNow, 9, "", new[] { (new[] { "players" }, FsJson.Parse("""{"a":1}""")) });
+        var export = new BackupFile("lobby", BackupFile.KindExport, DateTime.UtcNow, 9, "", new[] { (new[] { "players" }, BonfireJson.Parse("""{"a":1}""")) });
         var moved = BackupFile.Parse(export.ToJson(), Array.Empty<string>()).ToChangeSet(new[] { "archive", "players" });
-        Assert.Equal("{\"archive\":{\"players\":{\"a\":1}}}", FsJson.Serialize(moved.ApplyTo(null)));
+        Assert.Equal("{\"archive\":{\"players\":{\"a\":1}}}", BonfireJson.Serialize(moved.ApplyTo(null)));
 
         var plain = BackupFile.Parse("""{"x":{"y":2}}""", new[] { "imported" });
         Assert.Equal(BackupFile.KindPlainJson, plain.Kind);
-        Assert.Equal("{\"imported\":{\"x\":{\"y\":2}}}", FsJson.Serialize(plain.ToChangeSet().ApplyTo(null)));
+        Assert.Equal("{\"imported\":{\"x\":{\"y\":2}}}", BonfireJson.Serialize(plain.ToChangeSet().ApplyTo(null)));
     }
 
     [Theory]

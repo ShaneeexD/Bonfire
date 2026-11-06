@@ -6,7 +6,7 @@
 //   GET https://<host>/db/<room>/stats           usage counters (write key only)
 //   POST https://<host>/identity                 issue a signed player identity token (write key only)
 
-import { loadConfig, type Config, type FreeSyncEnv } from "./config";
+import { loadConfig, type Config, type BonfireEnv } from "./config";
 import { parsePath, joinPath } from "./paths";
 import { IdentityError, checkPlayerId, issueIdentity, verifyIdentity } from "./identity";
 import { PROTOCOL_VERSION, type Role } from "./protocol";
@@ -30,7 +30,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /** The role a key grants, or null for a wrong key. Without a READ_KEY, reading is open to all. */
-function roleFor(key: string | null, env: FreeSyncEnv): Role | null {
+function roleFor(key: string | null, env: BonfireEnv): Role | null {
   if (key && env.WRITE_KEY && safeEqual(key, env.WRITE_KEY)) return "admin";
   if (!env.READ_KEY) return "public";
   if (key && safeEqual(key, env.READ_KEY)) return "public";
@@ -63,16 +63,16 @@ export async function clientIdFor(room: string, token: string): Promise<string> 
   return out;
 }
 
-let cachedConfig: { env: FreeSyncEnv; cfg: Config } | null = null;
-function config(env: FreeSyncEnv): Config {
+let cachedConfig: { env: BonfireEnv; cfg: Config } | null = null;
+function config(env: BonfireEnv): Config {
   if (cachedConfig?.env !== env) cachedConfig = { env, cfg: loadConfig(env) };
   return cachedConfig.cfg;
 }
 
 export default {
-  async fetch(req: Request, env: FreeSyncEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: BonfireEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === "/" || url.pathname === "") return new Response("FreeSync is running.\n");
+    if (url.pathname === "/" || url.pathname === "") return new Response("Bonfire is running.\n");
     if (url.pathname === "/identity") return identityEndpoint(req, url, env, config(env));
     const m = url.pathname.match(/^\/db\/([^/]+)(?:\/(snapshot|stats))?\/?$/);
     if (!m) return json(404, "not_found", "unknown endpoint");
@@ -109,7 +109,7 @@ export default {
     }
     return json(404, "not_found", "unknown endpoint");
   },
-} satisfies ExportedHandler<FreeSyncEnv>;
+} satisfies ExportedHandler<BonfireEnv>;
 
 async function connect(
   req: Request,
@@ -117,14 +117,14 @@ async function connect(
   room: string,
   headers: Record<string, string>,
   stub: DurableObjectStub,
-  env: FreeSyncEnv,
+  env: BonfireEnv,
   cfg: Config,
 ): Promise<Response> {
   if (req.headers.get("Upgrade")?.toLowerCase() !== "websocket") return json(426, "upgrade_required", "expected a WebSocket upgrade");
   const v = url.searchParams.get("v") ?? String(PROTOCOL_VERSION);
   if (v !== String(PROTOCOL_VERSION)) return json(426, "unsupported_version", `server speaks protocol v${PROTOCOL_VERSION}`);
   // A signed identity token proves who the player is; it takes precedence over the self-chosen client token.
-  const identity = req.headers.get("X-FreeSync-Identity") ?? url.searchParams.get("identity");
+  const identity = req.headers.get("X-Bonfire-Identity") ?? url.searchParams.get("identity");
   if (identity) {
     if (!env.IDENTITY_SECRET) return json(400, "identity_not_configured", "this server has no IDENTITY_SECRET, so it can't verify identity tokens");
     try {
@@ -136,7 +136,7 @@ async function connect(
     }
   }
 
-  const token = req.headers.get("X-FreeSync-Token") ?? url.searchParams.get("token");
+  const token = req.headers.get("X-Bonfire-Token") ?? url.searchParams.get("token");
   let cid: string;
   if (token) {
     if (token.length < 16 || token.length > 256) return json(400, "bad_token", "client token must be 16-256 characters");
@@ -186,7 +186,7 @@ async function snapshot(
  * returns {"token": "...", "player": "...", "expires": "<ISO time>"}. For backends that would rather make an HTTP
  * call than sign JWTs themselves. Runs in the Worker only (no Durable Object request).
  */
-async function identityEndpoint(req: Request, url: URL, env: FreeSyncEnv, cfg: Config): Promise<Response> {
+async function identityEndpoint(req: Request, url: URL, env: BonfireEnv, cfg: Config): Promise<Response> {
   if (req.method !== "POST") return json(405, "method_not_allowed", "use POST");
   if (roleFor(keyFrom(req, url), env) !== "admin") return json(403, "permission_denied", "issuing identities needs the write key");
   if (!env.IDENTITY_SECRET) return json(400, "identity_not_configured", "set the IDENTITY_SECRET secret first");

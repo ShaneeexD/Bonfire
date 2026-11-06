@@ -8,7 +8,7 @@
 // Large values are split into frames that fit the server's 64 KB limit, in an order that gives the same
 // result as one big write (but only each frame is atomic).
 import { readFileSync } from "node:fs";
-import { fail, loadConfig, parseArgs } from "./freesync-config.mjs";
+import { fail, loadConfig, parseArgs } from "./bonfire-config.mjs";
 
 const MAX_FRAME = 56_000;
 
@@ -16,7 +16,8 @@ const args = parseArgs(process.argv.slice(2));
 const file = args._[0];
 if (!file) fail("give the backup file to restore");
 const backup = JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, ""));
-if (backup.format !== "freesync-backup" || !Array.isArray(backup.entries)) fail(`${file} is not a FreeSync backup file`);
+// "freesync-backup" is the format id from before the project was renamed.
+if (!["bonfire-backup", "freesync-backup"].includes(backup.format) || !Array.isArray(backup.entries)) fail(`${file} is not a Bonfire backup file`);
 const room = typeof args.room === "string" ? args.room : backup.room;
 if (!room || room === "?") fail("the backup doesn't say which room it is from; pass --room <name>");
 let entries = backup.entries.map((e) => ({ path: String(e.path ?? "").replace(/^\/+|\/+$/g, ""), value: e.value ?? null }));

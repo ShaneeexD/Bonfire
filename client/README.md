@@ -1,7 +1,7 @@
-# FreeSync client
+# Bonfire client
 
 A Firebase-style **realtime JSON database** client for game mods and hobby projects. It talks to a
-FreeSync server, which you deploy for free on Cloudflare's Workers plan. The server, a step-by-step
+Bonfire server, which you deploy for free on Cloudflare's Workers plan. The server, a step-by-step
 guide and a Windows database editor are in the project repository (see "Source repository" on this
 package's page).
 
@@ -15,19 +15,19 @@ package's page).
 ## Install
 
 ```bash
-dotnet add package FreeSync
+dotnet add package Bonfire
 ```
 
-For mods that can't use NuGet, download `FreeSync-Client-<version>.zip` from the repository's
-Releases page and reference `netstandard2.0/FreeSync.dll`.
+For mods that can't use NuGet, download `Bonfire-Client-<version>.zip` from the repository's
+Releases page and reference `netstandard2.0/Bonfire.dll`.
 
 ## Quick start
 
 ```csharp
-using FreeSync;
+using Bonfire;
 
-var db = new FreeSyncClient("wss://freesync.<you>.workers.dev", room: "global", key: "<read key>",
-    new FreeSyncOptions { ClientToken = FreeSyncClient.LoadOrCreateToken("freesync.token") });
+var db = new BonfireClient("wss://bonfire.<you>.workers.dev", room: "global", key: "<read key>",
+    new BonfireOptions { ClientToken = BonfireClient.LoadOrCreateToken("bonfire.token") });
 
 // Current value now, then every change.
 db.Ref("players").OnValue(snap =>
@@ -58,11 +58,11 @@ Create the client with `EventDispatch = EventDispatchMode.Queued` and call `db.D
 | `.OnDisconnect().Set/Update/Remove/Cancel` | Writes the server applies when you disconnect |
 | `DataSnapshot.Value`, `.GetValue<T>()`, `.Child()`, `.Children`, `.Exists`, `.Rev` | Reading results |
 | `db.State`, `db.StateChanged`, `db.ErrorOccurred`, `db.WritesBlockedUntil` | Connection and quota status |
-| `FreeSyncOptions` | Token, write batching interval, dispatch mode, disk cache, serializer, reconnect timing |
-| `FreeSyncOptions.IdentityToken` / `IdentityTokenProvider`, `db.IsVerified` | Verified player ids from your backend (`$uid` in server rules) |
-| `FreeSyncIdentity.Create(secret, playerId, validFor)` | Sign an identity token. **Backends only**: never ship the secret in a mod |
+| `BonfireOptions` | Token, write batching interval, dispatch mode, disk cache, serializer, reconnect timing |
+| `BonfireOptions.IdentityToken` / `IdentityTokenProvider`, `db.IsVerified` | Verified player ids from your backend (`$uid` in server rules) |
+| `BonfireIdentity.Create(secret, playerId, validFor)` | Sign an identity token. **Backends only**: never ship the secret in a mod |
 
-Refused writes throw `FreeSyncException` with a `Code` such as `permission_denied`, `rate_limited` or
+Refused writes throw `BonfireException` with a `Code` such as `permission_denied`, `rate_limited` or
 `write_quota`.
 
 ## Licence

@@ -5,33 +5,33 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using FreeSync.Internal;
-using FreeSync.Json;
+using Bonfire.Internal;
+using Bonfire.Json;
 
-namespace FreeSync
+namespace Bonfire
 {
     /// <summary>
-    /// A connection to one FreeSync room: a realtime JSON document shared by every client in the room.
+    /// A connection to one Bonfire room: a realtime JSON document shared by every client in the room.
     /// </summary>
     /// <example>
     /// <code>
-    /// var db = new FreeSyncClient("wss://my-worker.example.workers.dev", room: "global", key: "public-read-key");
+    /// var db = new BonfireClient("wss://my-worker.example.workers.dev", room: "global", key: "public-read-key");
     /// var scores = db.Ref("scores");
     /// scores.OnValue(snapshot => Console.WriteLine(snapshot.ToJson()));
     /// await scores.Child("player1").SetAsync(42);
     /// </code>
     /// </example>
     /// <remarks>
-    /// All members are thread-safe. Listener callbacks run according to <see cref="FreeSyncOptions.EventDispatch"/>;
+    /// All members are thread-safe. Listener callbacks run according to <see cref="BonfireOptions.EventDispatch"/>;
     /// with <see cref="EventDispatchMode.Queued"/> call <see cref="Dispatch"/> regularly (e.g. from Unity's <c>Update()</c>).
     /// </remarks>
-    public sealed class FreeSyncClient : IDisposable
+    public sealed class BonfireClient : IDisposable
     {
         private const int ProtocolVersion = 1;
         private static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
 
         private readonly object _gate = new object();
-        private readonly FreeSyncOptions _opts;
+        private readonly BonfireOptions _opts;
         private readonly EventDispatcher _events;
         private readonly Uri _wsUri;
         private readonly Uri _httpBase;
@@ -78,16 +78,16 @@ namespace FreeSync
         private Task? _connectionLoop;
         private Task? _writerLoop;
 
-        /// <summary>Creates a client for one room. Connects in the background unless <see cref="FreeSyncOptions.AutoConnect"/> is false.</summary>
-        /// <param name="url">The Worker URL, e.g. <c>wss://freesync.you.workers.dev</c> (http/https are accepted too).</param>
+        /// <summary>Creates a client for one room. Connects in the background unless <see cref="BonfireOptions.AutoConnect"/> is false.</summary>
+        /// <param name="url">The Worker URL, e.g. <c>wss://bonfire.you.workers.dev</c> (http/https are accepted too).</param>
         /// <param name="room">Room name: letters, digits, '-' and '_' (up to 64 characters by default).</param>
         /// <param name="key">The public read key (safe to ship in a mod) or the private write key (admin tools only).</param>
         /// <param name="options">Optional settings.</param>
-        public FreeSyncClient(string url, string room, string key, FreeSyncOptions? options = null)
+        public BonfireClient(string url, string room, string key, BonfireOptions? options = null)
         {
             if (string.IsNullOrEmpty(url)) throw new ArgumentException("url is required", nameof(url));
             if (string.IsNullOrEmpty(room)) throw new ArgumentException("room is required", nameof(room));
-            _opts = options ?? new FreeSyncOptions();
+            _opts = options ?? new BonfireOptions();
             _room = room;
             _key = key ?? "";
             var baseUri = new Uri(url.TrimEnd('/') + "/");
@@ -99,7 +99,7 @@ namespace FreeSync
             _events = new EventDispatcher(_opts.EventDispatch, Log);
             if (_opts.ClientToken != null) ClientId = Ids.ClientIdFor(room, _opts.ClientToken);
             // A verified identity decides the id (the server checks the signature; reading it here just saves a round trip).
-            if (_opts.IdentityToken != null && FreeSyncIdentity.ReadPlayerId(_opts.IdentityToken) is string sub) ClientId = sub;
+            if (_opts.IdentityToken != null && BonfireIdentity.ReadPlayerId(_opts.IdentityToken) is string sub) ClientId = sub;
             if (_opts.CacheDirectory != null) _disk = new DiskCache(_opts.CacheDirectory, baseUri.Host, room, Log);
             _online = _opts.AutoConnect;
             _state = _online ? ConnectionState.Connecting : ConnectionState.Offline;
@@ -111,7 +111,7 @@ namespace FreeSync
 
         /// <summary>
         /// This client's id, used by rules such as <c>players/$cid</c>. Known immediately when a
-        /// <see cref="FreeSyncOptions.ClientToken"/> is set; otherwise assigned by the server on connect.
+        /// <see cref="BonfireOptions.ClientToken"/> is set; otherwise assigned by the server on connect.
         /// </summary>
         public string? ClientId { get; private set; }
 
@@ -119,7 +119,7 @@ namespace FreeSync
         public string? Role { get; private set; }
 
         /// <summary>
-        /// True when the server verified this client's <see cref="FreeSyncOptions.IdentityToken"/>, so
+        /// True when the server verified this client's <see cref="BonfireOptions.IdentityToken"/>, so
         /// <see cref="ClientId"/> is a proven player id. Known once connected.
         /// </summary>
         public bool IsVerified { get; private set; }
@@ -132,7 +132,7 @@ namespace FreeSync
 
         /// <summary>
         /// When the server reported that the daily write quota is used up, the UTC time writes are expected to work again.
-        /// Writes fail fast with <see cref="FreeSyncException.IsQuota"/> until then. Reads keep working.
+        /// Writes fail fast with <see cref="BonfireException.IsQuota"/> until then. Reads keep working.
         /// </summary>
         public DateTime? WritesBlockedUntil
         {
@@ -140,7 +140,7 @@ namespace FreeSync
         }
 
         /// <summary>The last error that was not tied to a specific operation.</summary>
-        public FreeSyncException? LastError { get; private set; }
+        public BonfireException? LastError { get; private set; }
 
         /// <summary>Number of writes not yet confirmed by the server.</summary>
         public int PendingWriteCount
@@ -148,11 +148,11 @@ namespace FreeSync
             get { lock (_gate) return _pending.Count; }
         }
 
-        /// <summary>Raised when <see cref="State"/> changes. Runs like listener callbacks (see <see cref="FreeSyncOptions.EventDispatch"/>).</summary>
+        /// <summary>Raised when <see cref="State"/> changes. Runs like listener callbacks (see <see cref="BonfireOptions.EventDispatch"/>).</summary>
         public event Action<ConnectionState>? StateChanged;
 
         /// <summary>Raised for errors that are not tied to an operation you can await (e.g. a refused frame).</summary>
-        public event Action<FreeSyncException>? ErrorOccurred;
+        public event Action<BonfireException>? ErrorOccurred;
 
         /// <summary>A reference to a location in the document. "" or "/" is the root.</summary>
         public DatabaseReference Ref(string path = "") => new DatabaseReference(this, Paths.Parse(path));
@@ -215,7 +215,7 @@ namespace FreeSync
                 _pending.Clear();
                 SetState(ConnectionState.Offline);
             }
-            foreach (var w in pending) w.Fail(new FreeSyncException("disposed", "the client was closed before the write was confirmed"));
+            foreach (var w in pending) w.Fail(new BonfireException("disposed", "the client was closed before the write was confirmed"));
             SaveDisk(force: true);
             FlushOutbox();
             if (s != null)
@@ -258,7 +258,7 @@ namespace FreeSync
         {
             var tree = _opts.Serializer is BuiltInJsonSerializer
                 ? BuiltInJsonSerializer.ToTree(value)
-                : FsJson.Parse(_opts.Serializer.Serialize(value));
+                : BonfireJson.Parse(_opts.Serializer.Serialize(value));
             return Tree.Normalize(tree);
         }
 
@@ -285,14 +285,14 @@ namespace FreeSync
             var w = new PendingWrite(type, path, value);
             lock (_gate)
             {
-                FreeSyncException? refusal = null;
-                if (_disposed) refusal = new FreeSyncException("disposed", "the client is closed");
+                BonfireException? refusal = null;
+                if (_disposed) refusal = new BonfireException("disposed", "the client is closed");
                 else if (_writesBlockedUntil > Now())
-                    refusal = new FreeSyncException("write_quota", $"daily write quota used up until {_writesBlockedUntil:u}");
+                    refusal = new BonfireException("write_quota", $"daily write quota used up until {_writesBlockedUntil:u}");
                 else if (_pending.Count >= _opts.MaxQueuedWrites)
-                    refusal = new FreeSyncException("queue_full", "too many writes waiting to be sent");
-                else if (FsJson.Serialize(w.ToMessage()).Length > _maxFrame)
-                    refusal = new FreeSyncException("frame_too_large", "the value is larger than the server's frame limit");
+                    refusal = new BonfireException("queue_full", "too many writes waiting to be sent");
+                else if (BonfireJson.Serialize(w.ToMessage()).Length > _maxFrame)
+                    refusal = new BonfireException("frame_too_large", "the value is larger than the server's frame limit");
                 if (refusal != null)
                 {
                     w.Fail(refusal);
@@ -320,7 +320,7 @@ namespace FreeSync
             return w.Task;
         }
 
-        internal IDisposable Listen(string[] path, Action<DataSnapshot> onValue, Action<FreeSyncException>? onError)
+        internal IDisposable Listen(string[] path, Action<DataSnapshot> onValue, Action<BonfireException>? onError)
         {
             if (onValue == null) throw new ArgumentNullException(nameof(onValue));
             var key = Paths.Join(path);
@@ -329,7 +329,7 @@ namespace FreeSync
             Dictionary<string, object?>? msg = null;
             lock (_gate)
             {
-                if (_disposed) throw new ObjectDisposedException(nameof(FreeSyncClient));
+                if (_disposed) throw new ObjectDisposedException(nameof(BonfireClient));
                 if (!_subs.TryGetValue(key, out sub!))
                 {
                     sub = new Subscription(path);
@@ -402,11 +402,11 @@ namespace FreeSync
                 var status = (int)res.StatusCode;
                 var body = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
                 long rev = 0;
-                if (res.Headers.TryGetValues("X-FreeSync-Rev", out var revs)) long.TryParse(revs.FirstOrDefault(), out rev);
+                if (res.Headers.TryGetValues("X-Bonfire-Rev", out var revs)) long.TryParse(revs.FirstOrDefault(), out rev);
                 if (status == 304 && haveCached) return Overlay(path, cached.Value, Math.Max(rev, cached.Rev), false);
                 if (status == 200)
                 {
-                    var value = FsJson.Parse(body);
+                    var value = BonfireJson.Parse(body);
                     var etag = res.Headers.ETag?.ToString();
                     lock (_gate)
                     {
@@ -438,7 +438,7 @@ namespace FreeSync
                 if (sub != null) return new DataSnapshot(path, Tree.GetIn(View(), path), sub.Rev, true, _opts.Serializer);
                 if (_disk != null && _disk.TryGet(key, out var rev, out var value)) return Overlay(path, value, rev, true);
             }
-            throw new FreeSyncException(code, message);
+            throw new BonfireException(code, message);
         }
 
         internal Task RegisterOnDisconnect(string op, string[] path, object? value)
@@ -447,7 +447,7 @@ namespace FreeSync
             Task task;
             lock (_gate)
             {
-                if (_disposed) return Task.FromException(new FreeSyncException("disposed", "the client is closed"));
+                if (_disposed) return Task.FromException(new BonfireException("disposed", "the client is closed"));
                 if (op == "cancel")
                 {
                     _od.RemoveAll(r => Paths.IsPrefix(path, r.Path));
@@ -506,12 +506,12 @@ namespace FreeSync
                 try
                 {
                     var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer " + _key };
-                    if (_opts.ClientToken != null) headers["X-FreeSync-Token"] = _opts.ClientToken;
+                    if (_opts.ClientToken != null) headers["X-Bonfire-Token"] = _opts.ClientToken;
                     var identity = _opts.IdentityTokenProvider != null ? await _opts.IdentityTokenProvider().ConfigureAwait(false) : _opts.IdentityToken;
                     if (!string.IsNullOrEmpty(identity))
                     {
-                        headers["X-FreeSync-Identity"] = identity!;
-                        if (FreeSyncIdentity.ReadPlayerId(identity!) is string sub) ClientId = sub;
+                        headers["X-Bonfire-Identity"] = identity!;
+                        if (BonfireIdentity.ReadPlayerId(identity!) is string sub) ClientId = sub;
                     }
                     await socket.ConnectAsync(_wsUri, headers, _opts.KeepAliveInterval, ct).ConfigureAwait(false);
                     lock (_gate) _socket = socket;
@@ -552,7 +552,7 @@ namespace FreeSync
                     }
                     else if (httpStatus == 426 || closeCode == 4400)
                     {
-                        LastError = new FreeSyncException("unsupported_version", "the server does not speak this client's protocol version; update the client");
+                        LastError = new BonfireException("unsupported_version", "the server does not speak this client's protocol version; update the client");
                         _online = false;
                         SetState(ConnectionState.Offline);
                         RaiseError(LastError);
@@ -560,7 +560,7 @@ namespace FreeSync
                     }
                     else if (httpStatus == 429 || closeCode == 4029 || unavailableStreak >= 3)
                     {
-                        LastError = new FreeSyncException("quota", "the server's daily quota is used up; retrying after 00:00 UTC");
+                        LastError = new BonfireException("quota", "the server's daily quota is used up; retrying after 00:00 UTC");
                         SetState(ConnectionState.QuotaExceeded);
                         delay = QuotaDelay();
                     }
@@ -572,7 +572,7 @@ namespace FreeSync
                         if (httpStatus == 401 || httpStatus == 403 || closeCode == 4001)
                         {
                             var usesIdentity = _opts.IdentityTokenProvider != null || _opts.IdentityToken != null;
-                            LastError = new FreeSyncException("http_" + (httpStatus ?? 401),
+                            LastError = new BonfireException("http_" + (httpStatus ?? 401),
                                 usesIdentity ? "the server refused the key or the identity token (expired, or signed with another secret?)" : "the server refused the key");
                             RaiseError(LastError);
                             // A token provider can supply a fresh token, so keep normal backoff; otherwise retrying soon won't help.
@@ -634,7 +634,7 @@ namespace FreeSync
                 object? parsed;
                 try
                 {
-                    parsed = FsJson.Parse(text);
+                    parsed = BonfireJson.Parse(text);
                 }
                 catch (FormatException e)
                 {
@@ -801,7 +801,7 @@ namespace FreeSync
         {
             var code = m.TryGetValue("code", out var c) && c is string cs ? cs : "unknown";
             var message = m.TryGetValue("msg", out var mm) && mm is string ms ? ms : code;
-            var error = new FreeSyncException(code, message);
+            var error = new BonfireException(code, message);
             if (code == "write_quota" || code == "room_quota")
             {
                 _writesBlockedUntil = Now().Date.AddDays(1);
@@ -928,7 +928,7 @@ namespace FreeSync
                     if (w.Sent) continue;
                     if (frame.Count >= _maxOps) break;
                     var msg = w.ToMessage();
-                    var len = FsJson.Serialize(msg).Length + 1;
+                    var len = BonfireJson.Serialize(msg).Length + 1;
                     if (frame.Count > 0 && size + len > _maxFrame * 9 / 10) break;
                     size += len;
                     w.Sent = true;
@@ -950,7 +950,7 @@ namespace FreeSync
         {
             lock (_gate) socket ??= _socket;
             if (socket == null || messages.Count == 0) return;
-            var text = FsJson.Serialize(messages.Count == 1 ? messages[0] : messages);
+            var text = BonfireJson.Serialize(messages.Count == 1 ? messages[0] : messages);
             await _sendLock.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -1004,7 +1004,7 @@ namespace FreeSync
             _outbox.Add(() => StateChanged?.Invoke(state));
         }
 
-        private void RaiseError(FreeSyncException e) => _outbox.Add(() => ErrorOccurred?.Invoke(e));
+        private void RaiseError(BonfireException e) => _outbox.Add(() => ErrorOccurred?.Invoke(e));
 
         /// <summary>Hands queued callbacks to the dispatcher. Never call with the lock held.</summary>
         private void FlushOutbox()
@@ -1049,7 +1049,7 @@ namespace FreeSync
             }
         }
 
-        private void Log(string message) => _opts.Log?.Invoke("[FreeSync] " + message);
+        private void Log(string message) => _opts.Log?.Invoke("[Bonfire] " + message);
 
         // ---- small types ------------------------------------------------------------------------
 
@@ -1072,9 +1072,9 @@ namespace FreeSync
         private sealed class Listener
         {
             public readonly Action<DataSnapshot> OnValue;
-            public readonly Action<FreeSyncException>? OnError;
+            public readonly Action<BonfireException>? OnError;
 
-            public Listener(Action<DataSnapshot> onValue, Action<FreeSyncException>? onError)
+            public Listener(Action<DataSnapshot> onValue, Action<BonfireException>? onError)
             {
                 OnValue = onValue;
                 OnError = onError;

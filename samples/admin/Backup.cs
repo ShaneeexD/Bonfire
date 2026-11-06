@@ -1,7 +1,7 @@
 using System.Globalization;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>
 /// A backup is a list of "path = value" entries plus some metadata. Restoring it stages those entries as
@@ -10,7 +10,9 @@ namespace FreeSyncAdmin;
 /// </summary>
 public sealed record BackupFile(string Room, string Kind, DateTime CreatedUtc, long Rev, string Note, IReadOnlyList<(string[] Path, object? Value)> Entries)
 {
-    public const string Format = "freesync-backup";
+    public const string Format = "bonfire-backup";
+    /// <summary>Files written before the project was renamed; still restorable.</summary>
+    public const string LegacyFormat = "freesync-backup";
     public const string KindExport = "export";
     public const string KindBeforeSubmit = "before-submit";
     public const string KindPlainJson = "json";
@@ -20,7 +22,7 @@ public sealed record BackupFile(string Room, string Kind, DateTime CreatedUtc, l
         (Entries.Count == 1 ? "/" + JsonUtil.Join(Entries[0].Path) : $"{Entries.Count} paths") +
         (Note.Length > 0 ? "  " + Note : "");
 
-    public string ToJson() => FsJson.Serialize(new Dictionary<string, object?>
+    public string ToJson() => BonfireJson.Serialize(new Dictionary<string, object?>
     {
         ["format"] = Format,
         ["version"] = 1L,
@@ -38,8 +40,8 @@ public sealed record BackupFile(string Room, string Kind, DateTime CreatedUtc, l
     /// </summary>
     public static BackupFile Parse(string json, string[] plainJsonPath)
     {
-        var tree = FsJson.Parse(json);
-        if (tree is Dictionary<string, object?> d && d.TryGetValue("format", out var f) && f as string == Format)
+        var tree = BonfireJson.Parse(json);
+        if (tree is Dictionary<string, object?> d && d.TryGetValue("format", out var f) && f is Format or LegacyFormat)
         {
             var entries = new List<(string[], object?)>();
             if (d.TryGetValue("entries", out var list) && list is List<object?> items)
@@ -81,9 +83,9 @@ public sealed record BackupFile(string Room, string Kind, DateTime CreatedUtc, l
 
     // ---- files on disk -----------------------------------------------------------------------------
 
-    /// <summary>%APPDATA%\FreeSync\backups\&lt;room&gt;: where automatic before-submit backups go.</summary>
+    /// <summary>%APPDATA%\Bonfire\backups\&lt;room&gt;: where automatic before-submit backups go.</summary>
     public static string FolderFor(string room) =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FreeSync", "backups",
+        Path.Combine(BonfireSamples.SavedSettings.Folder, "backups",
             new string(room.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_').ToArray()));
 
     /// <summary>Writes the backup into <paramref name="folder"/> and deletes the oldest beyond <paramref name="keep"/>.</summary>

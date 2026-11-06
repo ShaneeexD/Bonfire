@@ -1,6 +1,6 @@
-// FreeSync Unity example: shares this GameObject's position with everyone in the room and shows the others.
+// Bonfire Unity example: shares this GameObject's position with everyone in the room and shows the others.
 //
-// Setup: put FreeSync.dll (the netstandard2.0 build) in your mod/plugin folder or Assets/Plugins,
+// Setup: put Bonfire.dll (the netstandard2.0 build) in your mod/plugin folder or Assets/Plugins,
 // add this component to a GameObject, and fill in the Worker URL and read key in the Inspector.
 //
 // Unity APIs are not thread-safe, so the client is created with EventDispatchMode.Queued and
@@ -12,12 +12,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using FreeSync;
+using Bonfire;
 using UnityEngine;
 
-public class FreeSyncExample : MonoBehaviour
+public class BonfireExample : MonoBehaviour
 {
-    [SerializeField] private string workerUrl = "wss://freesync.your-account.workers.dev";
+    [SerializeField] private string workerUrl = "wss://bonfire.your-account.workers.dev";
     [SerializeField] private string room = "global";
     [SerializeField] private string readKey = "public-read-key";
     [SerializeField] private string playerName = "Player";
@@ -25,7 +25,7 @@ public class FreeSyncExample : MonoBehaviour
     [SerializeField] private float sendInterval = 0.1f;
     [SerializeField] private GameObject? otherPlayerPrefab = null;
 
-    private FreeSyncClient? _db;
+    private BonfireClient? _db;
     private IDisposable? _playersListener;
     private float _nextSend;
     private readonly Dictionary<string, GameObject> _others = new Dictionary<string, GameObject>();
@@ -39,11 +39,11 @@ public class FreeSyncExample : MonoBehaviour
 
     private void Start()
     {
-        var dataDir = Path.Combine(Application.persistentDataPath, "freesync");
-        _db = new FreeSyncClient(workerUrl, room, readKey, new FreeSyncOptions
+        var dataDir = Path.Combine(Application.persistentDataPath, "bonfire");
+        _db = new BonfireClient(workerUrl, room, readKey, new BonfireOptions
         {
             // A secret per-install token gives this player a stable id across restarts (rules use it as $cid).
-            ClientToken = FreeSyncClient.LoadOrCreateToken(Path.Combine(dataDir, "token.txt")),
+            ClientToken = BonfireClient.LoadOrCreateToken(Path.Combine(dataDir, "token.txt")),
             EventDispatch = EventDispatchMode.Queued,
             CacheDirectory = dataDir, // show last known data immediately on the next start
             Log = msg => Debug.Log(msg),
@@ -55,7 +55,7 @@ public class FreeSyncExample : MonoBehaviour
     private void Update()
     {
         if (_db == null) return;
-        _db.Dispatch(); // runs FreeSync callbacks here, on the main thread
+        _db.Dispatch(); // runs Bonfire callbacks here, on the main thread
 
         if (_db.State == ConnectionState.Connected && Time.time >= _nextSend && transform.hasChanged)
         {
@@ -68,9 +68,9 @@ public class FreeSyncExample : MonoBehaviour
 
     private void OnConnectionState(ConnectionState state)
     {
-        Debug.Log($"FreeSync: {state}");
+        Debug.Log($"Bonfire: {state}");
         if (state == ConnectionState.QuotaExceeded)
-            Debug.LogWarning("FreeSync: the server's free daily quota is used up; showing last known data until 00:00 UTC.");
+            Debug.LogWarning("Bonfire: the server's free daily quota is used up; showing last known data until 00:00 UTC.");
         if (state != ConnectionState.Connected || _db == null) return;
 
         // The server removes presence when we disconnect, so set it again on every (re)connect.
@@ -111,7 +111,7 @@ public class FreeSyncExample : MonoBehaviour
         _db = null;
     }
 
-    /// <summary>Fire-and-forget a FreeSync task, logging failures (for example permission or quota errors).</summary>
+    /// <summary>Fire-and-forget a Bonfire task, logging failures (for example permission or quota errors).</summary>
     private static void Fire(Task task) =>
-        task.ContinueWith(t => Debug.LogWarning($"FreeSync: {t.Exception?.GetBaseException().Message}"), TaskContinuationOptions.OnlyOnFaulted);
+        task.ContinueWith(t => Debug.LogWarning($"Bonfire: {t.Exception?.GetBaseException().Message}"), TaskContinuationOptions.OnlyOnFaulted);
 }

@@ -1,22 +1,22 @@
-// Optional adapter: copy this file into your project to use Newtonsoft.Json (Json.NET) with FreeSync.
+// Optional adapter: copy this file into your project to use Newtonsoft.Json (Json.NET) with Bonfire.
 //
-//   var db = new FreeSyncClient(url, room, key, new FreeSyncOptions { Serializer = new NewtonsoftJsonSerializer() });
+//   var db = new BonfireClient(url, room, key, new BonfireOptions { Serializer = new NewtonsoftJsonSerializer() });
 //
 // Many Unity games already ship Newtonsoft.Json (or Unity's com.unity.nuget.newtonsoft-json package);
 // reuse the game's copy rather than shipping a second one with your mod.
 
 using System;
-using FreeSync.Json;
+using Bonfire.Json;
 using Newtonsoft.Json;
 
-namespace FreeSync.Adapters
+namespace Bonfire.Adapters
 {
     /// <summary>An <see cref="IJsonSerializer"/> backed by Newtonsoft.Json.</summary>
     public sealed class NewtonsoftJsonSerializer : IJsonSerializer
     {
         private readonly JsonSerializerSettings _settings;
 
-        /// <summary>Creates the adapter. Null values are omitted by default (they mean "absent" in FreeSync).</summary>
+        /// <summary>Creates the adapter. Null values are omitted by default (they mean "absent" in Bonfire).</summary>
         public NewtonsoftJsonSerializer(JsonSerializerSettings? settings = null)
         {
             _settings = settings ?? new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };

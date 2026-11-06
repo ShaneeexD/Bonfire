@@ -4,17 +4,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using FreeSync.Json;
+using Bonfire.Json;
 using Xunit;
 
-namespace FreeSync.Tests
+namespace Bonfire.Tests
 {
     public class ClientTests
     {
-        private static (FreeSyncClient Client, MockServer Server) Create(Action<FreeSyncOptions>? configure = null)
+        private static (BonfireClient Client, MockServer Server) Create(Action<BonfireOptions>? configure = null)
         {
             var server = new MockServer();
-            var opts = new FreeSyncOptions
+            var opts = new BonfireOptions
             {
                 SocketFactory = server.Create,
                 EventDispatch = EventDispatchMode.Immediate,
@@ -23,7 +23,7 @@ namespace FreeSync.Tests
                 ReconnectMaxDelay = TimeSpan.FromMilliseconds(50),
             };
             configure?.Invoke(opts);
-            return (new FreeSyncClient("wss://example.test", "global", "read-key", opts), server);
+            return (new BonfireClient("wss://example.test", "global", "read-key", opts), server);
         }
 
         private static async Task Eventually(Func<bool> condition, int timeoutMs = 3000)
@@ -47,7 +47,7 @@ namespace FreeSync.Tests
             await server.Accept(cid: "jghcqgrt4btbgyfs");
             await Eventually(() => db.State == ConnectionState.Connected);
             Assert.Equal("Bearer read-key", server.LastHeaders!["Authorization"]);
-            Assert.Equal("my-secret-token-123456", server.LastHeaders["X-FreeSync-Token"]);
+            Assert.Equal("my-secret-token-123456", server.LastHeaders["X-Bonfire-Token"]);
             Assert.Equal("wss://example.test/db/global?v=1", server.LastUri!.ToString());
             Assert.Equal("public", db.Role);
         }
@@ -124,7 +124,7 @@ namespace FreeSync.Tests
             var task = db.Ref("a/x").SetAsync(9);
             var set = await s.NextOf("set");
             s.Push(new { t = "err", id = set["id"], code = "permission_denied", msg = "no" });
-            var ex = await Assert.ThrowsAsync<FreeSyncException>(() => task);
+            var ex = await Assert.ThrowsAsync<BonfireException>(() => task);
             Assert.Equal("permission_denied", ex.Code);
             await Eventually(() => values.Count == 3);
             Assert.Equal(new[] { "{\"x\":0}", "{\"x\":9}", "{\"x\":0}" }, values.ToArray());
@@ -253,9 +253,9 @@ namespace FreeSync.Tests
             var task = db.Ref("a").SetAsync(1);
             var set = await s.NextOf("set");
             s.Push(new { t = "err", id = set["id"], code = "write_quota", msg = "used up" });
-            Assert.True((await Assert.ThrowsAsync<FreeSyncException>(() => task)).IsQuota);
+            Assert.True((await Assert.ThrowsAsync<BonfireException>(() => task)).IsQuota);
             Assert.NotNull(db.WritesBlockedUntil);
-            var ex = await Assert.ThrowsAsync<FreeSyncException>(() => db.Ref("a").SetAsync(2));
+            var ex = await Assert.ThrowsAsync<BonfireException>(() => db.Ref("a").SetAsync(2));
             Assert.Equal("write_quota", ex.Code);
             Assert.False(s.HasPendingFrames);
         }
@@ -309,7 +309,7 @@ namespace FreeSync.Tests
             var (db, server) = Create();
             using var _ = db;
             var s = await server.Accept();
-            FreeSyncException? error = null;
+            BonfireException? error = null;
             db.Ref("secret").OnValue(_ => { }, e => error = e);
             var sub = await s.NextOf("sub");
             s.Push(new { t = "err", id = sub["id"], code = "permission_denied", msg = "no" });
@@ -336,7 +336,7 @@ namespace FreeSync.Tests
         [Fact]
         public async Task DiskCacheServesColdStartsAndSuppliesSince()
         {
-            var dir = Path.Combine(Path.GetTempPath(), "freesync-test-" + Guid.NewGuid().ToString("N"));
+            var dir = Path.Combine(Path.GetTempPath(), "bonfire-test-" + Guid.NewGuid().ToString("N"));
             try
             {
                 var (db1, server1) = Create(o => o.CacheDirectory = dir);

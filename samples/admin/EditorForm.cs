@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using FreeSync;
-using FreeSync.Json;
-using FreeSyncSamples;
+using Bonfire;
+using Bonfire.Json;
+using BonfireSamples;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>
 /// Admin editor for one room. The left tree shows the live document (or the part under "Path"), with staged
@@ -79,7 +79,7 @@ internal sealed class EditorForm : Form
     private long _scopeRev;
     private bool _usageBusy;
 
-    private FreeSyncClient? _db;
+    private BonfireClient? _db;
     private IDisposable? _subscription;
     private string[] _scope = Array.Empty<string>();
     private object? _scopeValue;
@@ -116,7 +116,7 @@ internal sealed class EditorForm : Form
     public EditorForm(AdminSettings settings)
     {
         _settings = settings;
-        Text = "FreeSync admin editor";
+        Text = "Bonfire admin editor";
         ClientSize = new Size(1280, 780);
         MinimumSize = new Size(900, 560);
         Font = new Font("Segoe UI", 9);
@@ -343,7 +343,7 @@ internal sealed class EditorForm : Form
         try
         {
             _scope = JsonUtil.ParsePath(_path.Text);
-            _db = new FreeSyncClient(_url.Text.Trim(), _room.Text.Trim(), _key.Text.Trim(), new FreeSyncOptions
+            _db = new BonfireClient(_url.Text.Trim(), _room.Text.Trim(), _key.Text.Trim(), new BonfireOptions
             {
                 // An admin tool must not mangle data, so writes go out promptly and nothing is cached on disk.
                 WriteInterval = TimeSpan.FromMilliseconds(20),
@@ -372,7 +372,7 @@ internal sealed class EditorForm : Form
         _db.ErrorOccurred += e => Log($"error: {e.Code}: {e.Message}");
         foreach (var t in new Control[] { _url, _room, _key, _path, _rememberKey }) t.Enabled = false;
         _connect.Text = "Disconnect";
-        Text = $"FreeSync admin editor - {_room.Text}{(_scope.Length > 0 ? "/" + JsonUtil.Join(_scope) : "")}";
+        Text = $"Bonfire admin editor - {_room.Text}{(_scope.Length > 0 ? "/" + JsonUtil.Join(_scope) : "")}";
         Subscribe();
         RefreshBackupList();
         _ = RefreshUsage();
@@ -545,7 +545,7 @@ internal sealed class EditorForm : Form
             Dictionary<string, object?> d => $"{label}   {{{d.Count}}}",
             List<object?> l => $"{label}: [{l.Count}] {JsonUtil.Cell(l, 60)}",
             null when isRoot => $"{label}   (empty)",
-            _ => $"{label}: {JsonUtil.Cell(value is string ? FsJson.Serialize(value) : value, 100)}",
+            _ => $"{label}: {JsonUtil.Cell(value is string ? BonfireJson.Serialize(value) : value, 100)}",
         };
         var touched = _staged.Touches(path);
         var below = !touched && _staged.ContainsBelow(path);
@@ -606,7 +606,7 @@ internal sealed class EditorForm : Form
         var header = "/" + JsonUtil.Join(_selected) + (value == null ? "   (no value)" : "") + (_staged.Touches(_selected) ? "   - staged" : "");
         if (_nodePath.Text != header) _nodePath.Text = header;
 
-        var json = FsJson.Serialize(value);
+        var json = BonfireJson.Serialize(value);
         var sameNode = _loadedPath != null && _loadedPath.SequenceEqual(_selected);
         var busy = _editorDirty || _value.ContainsFocus || _type.ContainsFocus || _type.DroppedDown;
         switch (EditorRefreshPolicy.Decide(force, sameNode, json != _loadedJson, busy))
@@ -675,7 +675,7 @@ internal sealed class EditorForm : Form
                 if (trimmed.Length == 0) return null;
                 try
                 {
-                    return FsJson.Parse(trimmed);
+                    return BonfireJson.Parse(trimmed);
                 }
                 catch (FormatException) when (!trimmed.StartsWith('{') && !trimmed.StartsWith('[') && !trimmed.StartsWith('"'))
                 {
@@ -700,7 +700,7 @@ internal sealed class EditorForm : Form
         if (value == null && !Confirm($"Delete /{JsonUtil.Join(_selected)} and everything below it?")) return;
         _editorDirty = false;
         _loadedPath = _selected;
-        _loadedJson = FsJson.Serialize(JsonUtil.Normalize(value));
+        _loadedJson = BonfireJson.Serialize(JsonUtil.Normalize(value));
         _changedNotice.Visible = false;
         Apply(Single(_selected, value), $"set /{JsonUtil.Join(_selected)}");
     }
@@ -824,14 +824,14 @@ internal sealed class EditorForm : Form
             long last = 0;
             foreach (var frame in frames)
                 last = frame.SetsRoot ? await _db.Ref("").SetAsync(frame.RootValue) : await _db.Ref("").UpdateAsync(frame.Paths);
-            var bytes = frames.Sum(f => f.SetsRoot ? FsJson.Serialize(f.RootValue).Length : FsJson.Serialize(f.Paths).Length);
+            var bytes = frames.Sum(f => f.SetsRoot ? BonfireJson.Serialize(f.RootValue).Length : BonfireJson.Serialize(f.Paths).Length);
             _ = RefreshUsage();
             Log($"sent {description}: {changes.Count} path(s) in {frames.Count} request(s){(frames.Count > 1 ? " (too big for one frame; each part is atomic)" : " (atomic)")}, {bytes:N0} bytes, rev {last}, {sw.ElapsedMilliseconds} ms");
             return true;
         }
-        catch (Exception e) when (e is FreeSyncException or ArgumentException or FormatException)
+        catch (Exception e) when (e is BonfireException or ArgumentException or FormatException)
         {
-            var code = e is FreeSyncException fe ? fe.Code : "invalid";
+            var code = e is BonfireException fe ? fe.Code : "invalid";
             Log($"FAILED {description}: {code}: {e.Message}");
             MessageBox.Show(this, $"{code}: {e.Message}", "The server refused the change");
             return false;
@@ -853,7 +853,7 @@ internal sealed class EditorForm : Form
         {
             var item = new ListViewItem(value == null ? "DELETE" : "SET") { Tag = path };
             item.SubItems.Add("/" + JsonUtil.Join(path));
-            item.SubItems.Add(value == null ? "" : JsonUtil.Cell(value is string ? FsJson.Serialize(value) : value, 400));
+            item.SubItems.Add(value == null ? "" : JsonUtil.Cell(value is string ? BonfireJson.Serialize(value) : value, 400));
             item.ForeColor = value == null ? Color.Firebrick : Color.DarkOrange;
             _pending.Items.Add(item);
         }
@@ -928,7 +928,7 @@ internal sealed class EditorForm : Form
             {
                 extra[table] = (await _db.Ref(table).GetAsync()).Value;
             }
-            catch (FreeSyncException e)
+            catch (BonfireException e)
             {
                 SqlStatus($"could not read {table}: {e.Message}", true);
                 return;
@@ -1022,7 +1022,7 @@ internal sealed class EditorForm : Form
             RefreshBackupList();
             return true;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or FreeSyncException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or BonfireException)
         {
             Log($"backup before sending FAILED: {e.Message}");
             return Confirm($"Couldn't save a backup before sending ({e.Message}).\n\nSend anyway, without a backup?");
@@ -1046,7 +1046,7 @@ internal sealed class EditorForm : Form
         using var dialog = new SaveFileDialog
         {
             Title = $"Export /{JsonUtil.Join(path)}",
-            Filter = "FreeSync backup (*.json)|*.json",
+            Filter = "Bonfire backup (*.json)|*.json",
             FileName = $"{_room.Text.Trim()}-{label}-{DateTime.Now:yyyyMMdd-HHmmss}.json",
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
@@ -1172,7 +1172,7 @@ internal sealed class EditorForm : Form
                 return;
             }
             var accountTask = RefreshAccountUsage();
-            var usage = UsageModel.From(FsJson.Parse(body), DateTime.UtcNow);
+            var usage = UsageModel.From(BonfireJson.Parse(body), DateTime.UtcNow);
             _usageView.Show(usage);
             _usageView.Status.Text = $"Updated {DateTime.Now:HH:mm:ss} · refreshes every 60 s while this window is active (each refresh costs 2 requests)";
             var h = usage.Headline;
@@ -1232,7 +1232,7 @@ internal sealed class EditorForm : Form
     }
 
     private bool Confirm(string question) =>
-        MessageBox.Show(this, question, "FreeSync admin editor", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK;
+        MessageBox.Show(this, question, "Bonfire admin editor", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK;
 
     private string? Prompt(string title, string label, string initial)
     {

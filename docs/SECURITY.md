@@ -1,6 +1,6 @@
 # Security model
 
-FreeSync is built for hobby projects and game mods. It aims for "not trivially vandalised", not
+Bonfire is built for hobby projects and game mods. It aims for "not trivially vandalised", not
 bank-grade security. Read this page before you ship a mod with a key in it.
 
 ## Keys and roles
@@ -44,7 +44,7 @@ server mod, a website with logins, or a Discord bot.
   - `sub` (the player id, which must be a valid key: no `/ . # $ [ ]`);
   - `exp` (expiry, Unix seconds);
   - optionally `room` (a room name or glob such as `lobby-*`) to limit where it works.
-- **The client** sends it in `X-FreeSync-Identity` (`FreeSyncOptions.IdentityToken`, or
+- **The client** sends it in `X-Bonfire-Identity` (`BonfireOptions.IdentityToken`, or
   `IdentityTokenProvider` to fetch a fresh one before every reconnect).
 - **The Worker checks it** before anything reaches the room. A bad signature, any algorithm other
   than HS256, an expired token, one valid for longer than `IDENTITY_MAX_DAYS` (30) or one for another
@@ -66,7 +66,7 @@ server mod, a website with logins, or a Discord bot.
 - **C# backends:**
 
   ```csharp
-  var token = FreeSyncIdentity.Create(secret, playerId, TimeSpan.FromHours(24), room: null);
+  var token = BonfireIdentity.Create(secret, playerId, TimeSpan.FromHours(24), room: null);
   ```
 
 - **Any JWT library:** for example Node's `jsonwebtoken`:
@@ -131,7 +131,7 @@ Rules come from the `RULES` var (a JSON object in `wrangler.jsonc`, or a JSON st
   need a relay you control (an admin tool with the write key) or a stricter design.
 - `players/$cid` lets a player write any values into their own subtree, including made-up scores.
   `$uid` proves *who* wrote something, not that the value is honest.
-  FreeSync can't validate game logic. If cheating matters, have your own server write scores with the
+  Bonfire can't validate game logic. If cheating matters, have your own server write scores with the
   write key and make that path admin-only.
 
 ## Validation and limits

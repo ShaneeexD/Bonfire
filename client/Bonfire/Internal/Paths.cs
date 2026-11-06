@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace FreeSync.Internal
+namespace Bonfire.Internal
 {
     /// <summary>Path parsing and comparison, mirroring the server's rules.</summary>
     internal static class Paths

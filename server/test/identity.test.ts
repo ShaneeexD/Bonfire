@@ -7,7 +7,7 @@ const SECRET = "test-identity-secret"; // matches vitest.config.ts
 const now = () => Math.floor(Date.now() / 1000);
 const p = (s: string) => s.split("/");
 
-// The same token is produced by the C# FreeSyncIdentity.Create test; both sides must agree byte for byte.
+// The same token is produced by the C# BonfireIdentity.Create test; both sides must agree byte for byte.
 const VECTOR =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwbGF5ZXItNDIiLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDA4NjQwMCwicm9vbSI6Imdsb2JhbCJ9.v2yC4brhKZy3b65rj4SO5TJEycquTVk5npg0mMkbK94";
 
@@ -52,7 +52,7 @@ describe("identity tokens (unit)", () => {
 
 describe("identity tokens (integration, rules from wrangler.jsonc)", () => {
   const ws = (room: string, identity: string) =>
-    http(`/db/${room}?v=1`, { headers: { Upgrade: "websocket", Authorization: `Bearer ${READ_KEY}`, "X-FreeSync-Identity": identity } });
+    http(`/db/${room}?v=1`, { headers: { Upgrade: "websocket", Authorization: `Bearer ${READ_KEY}`, "X-Bonfire-Identity": identity } });
 
   it("a verified player gets their id as cid and can write profiles/$uid; others can't", async () => {
     const room = roomName();

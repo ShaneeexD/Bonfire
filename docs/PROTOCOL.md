@@ -1,4 +1,4 @@
-# FreeSync wire protocol, version 1
+# Bonfire wire protocol, version 1
 
 The protocol uses JSON text frames over one WebSocket per client per room. Keys are short to keep
 frames small. The server is the reference implementation:
@@ -9,8 +9,8 @@ frames small. The server is the reference implementation:
 ```
 GET wss://<host>/db/<room>?v=1
 Authorization: Bearer <read key | write key>     (or ?key=<key>)
-X-FreeSync-Token: <client secret, 16-256 chars>  (optional, or ?token=<...>)
-X-FreeSync-Identity: <signed identity token>     (optional, or ?identity=<...>)
+X-Bonfire-Token: <client secret, 16-256 chars>  (optional, or ?token=<...>)
+X-Bonfire-Identity: <signed identity token>     (optional, or ?identity=<...>)
 Upgrade: websocket
 ```
 
@@ -129,7 +129,7 @@ If-None-Match: "<etag>"              (optional)
 ```
 
 - Returns the JSON value at the path (`null` if absent), with headers `ETag: "<rev>"`,
-  `X-FreeSync-Rev`, and `Cache-Control: public, max-age=SNAPSHOT_MAX_AGE`.
+  `X-Bonfire-Rev`, and `Cache-Control: public, max-age=SNAPSHOT_MAX_AGE`.
 - Returns **304** when `If-None-Match` matches.
 - Public (read-key) responses are cached in the Cloudflare data centre for `SNAPSHOT_MAX_AGE`
   seconds, so repeated startup reads skip the Durable Object.

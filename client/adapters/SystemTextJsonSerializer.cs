@@ -1,15 +1,15 @@
-// Optional adapter: copy this file into your project to use System.Text.Json with FreeSync.
+// Optional adapter: copy this file into your project to use System.Text.Json with Bonfire.
 //
-//   var db = new FreeSyncClient(url, room, key, new FreeSyncOptions { Serializer = new SystemTextJsonSerializer() });
+//   var db = new BonfireClient(url, room, key, new BonfireOptions { Serializer = new SystemTextJsonSerializer() });
 //
 // System.Text.Json is built into .NET Core 3.0+ / .NET 5+. On Unity or .NET Framework it needs the
 // System.Text.Json package, so the built-in serializer or the Newtonsoft adapter is usually simpler there.
 
 using System;
 using System.Text.Json;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSync.Adapters
+namespace Bonfire.Adapters
 {
     /// <summary>An <see cref="IJsonSerializer"/> backed by System.Text.Json.</summary>
     public sealed class SystemTextJsonSerializer : IJsonSerializer

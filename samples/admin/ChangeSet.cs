@@ -1,7 +1,7 @@
 using System.Text;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>
 /// Staged edits for batch mode: an ordered set of "path = value" writes (null deletes) with no path inside
@@ -124,7 +124,7 @@ public sealed class ChangeSet
     }
 
     private static int Size(IReadOnlyList<string> path, object? value) =>
-        Encoding.UTF8.GetByteCount(JsonUtil.Join(path)) + Encoding.UTF8.GetByteCount(FsJson.Serialize(value)) + 8;
+        Encoding.UTF8.GetByteCount(JsonUtil.Join(path)) + Encoding.UTF8.GetByteCount(BonfireJson.Serialize(value)) + 8;
 }
 
 /// <summary>One write to send: either a set at the room root, or a multi-path update (paths → values).</summary>

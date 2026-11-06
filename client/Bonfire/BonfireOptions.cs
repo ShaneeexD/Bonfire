@@ -1,9 +1,9 @@
 using System;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSync
+namespace Bonfire
 {
-    /// <summary>The state of the realtime connection, reported through <see cref="FreeSyncClient.StateChanged"/>.</summary>
+    /// <summary>The state of the realtime connection, reported through <see cref="BonfireClient.StateChanged"/>.</summary>
     public enum ConnectionState
     {
         /// <summary>Opening the first connection.</summary>
@@ -14,10 +14,10 @@ namespace FreeSync
         Reconnecting,
         /// <summary>
         /// The server's daily free quota is used up. Last known data stays available; the client retries rarely
-        /// (see <see cref="FreeSyncOptions.QuotaProbeInterval"/>) and fully after 00:00 UTC.
+        /// (see <see cref="BonfireOptions.QuotaProbeInterval"/>) and fully after 00:00 UTC.
         /// </summary>
         QuotaExceeded,
-        /// <summary>Not connected and not trying: <see cref="FreeSyncClient.GoOffline"/> was called, the client was disposed,
+        /// <summary>Not connected and not trying: <see cref="BonfireClient.GoOffline"/> was called, the client was disposed,
         /// or the server refused the protocol version.</summary>
         Offline,
     }
@@ -34,23 +34,23 @@ namespace FreeSync
         Immediate,
         /// <summary>Post callbacks to the captured <see cref="System.Threading.SynchronizationContext"/>.</summary>
         SynchronizationContext,
-        /// <summary>Queue callbacks until you call <see cref="FreeSyncClient.Dispatch"/>, for example from Unity's <c>Update()</c>.</summary>
+        /// <summary>Queue callbacks until you call <see cref="BonfireClient.Dispatch"/>, for example from Unity's <c>Update()</c>.</summary>
         Queued,
     }
 
-    /// <summary>Settings for <see cref="FreeSyncClient"/>. All have sensible defaults for hobby use.</summary>
-    public sealed class FreeSyncOptions
+    /// <summary>Settings for <see cref="BonfireClient"/>. All have sensible defaults for hobby use.</summary>
+    public sealed class BonfireOptions
     {
         /// <summary>
-        /// A secret, stable per-player token (16-256 characters). The server derives <see cref="FreeSyncClient.ClientId"/> from it,
-        /// so rules like <c>players/$cid</c> work across restarts. Use <see cref="FreeSyncClient.LoadOrCreateToken"/> to keep one on disk.
+        /// A secret, stable per-player token (16-256 characters). The server derives <see cref="BonfireClient.ClientId"/> from it,
+        /// so rules like <c>players/$cid</c> work across restarts. Use <see cref="BonfireClient.LoadOrCreateToken"/> to keep one on disk.
         /// Without a token, each connection gets a random anonymous id.
         /// </summary>
         public string? ClientToken { get; set; }
 
         /// <summary>
-        /// A signed identity token from your own backend (see <see cref="FreeSyncIdentity"/>). The server then treats
-        /// <see cref="FreeSyncClient.ClientId"/> as a <b>verified</b> player id, which rules can trust with <c>$uid</c>.
+        /// A signed identity token from your own backend (see <see cref="BonfireIdentity"/>). The server then treats
+        /// <see cref="BonfireClient.ClientId"/> as a <b>verified</b> player id, which rules can trust with <c>$uid</c>.
         /// Takes precedence over <see cref="ClientToken"/>. Tokens expire, so for long sessions prefer
         /// <see cref="IdentityTokenProvider"/>.
         /// </summary>

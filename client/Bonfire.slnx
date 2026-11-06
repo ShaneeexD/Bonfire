@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="FreeSync/FreeSync.csproj" />
-  <Project Path="FreeSync.Tests/FreeSync.Tests.csproj" />
+  <Project Path="Bonfire/Bonfire.csproj" />
+  <Project Path="Bonfire.Tests/Bonfire.Tests.csproj" />
 </Solution>

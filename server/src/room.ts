@@ -5,7 +5,7 @@
 // so the object can hibernate as soon as a handler returns.
 
 import { DurableObject } from "cloudflare:workers";
-import { loadConfig, type Config, type FreeSyncEnv } from "./config";
+import { loadConfig, type Config, type BonfireEnv } from "./config";
 import { isPrefix, joinPath, parsePath, PathError, utf8Length, MAX_PATH_DEPTH, type Path } from "./paths";
 import { Close, Err, PING, PONG, PROTOCOL_VERSION, type Attachment, type Role } from "./protocol";
 import { Rules, type Who } from "./rules";
@@ -93,7 +93,7 @@ export function opsFor(subs: Path[], changes: readonly { path: Path; value: Json
   return out;
 }
 
-export class RoomDO extends DurableObject<FreeSyncEnv> {
+export class RoomDO extends DurableObject<BonfireEnv> {
   private readonly cfg: Config;
   private readonly store: Store;
   private readonly stats: Stats;
@@ -103,7 +103,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
   /** Set when SQLite reports a quota error; writes are refused until the next UTC midnight. */
   private quotaUntil = 0;
 
-  constructor(ctx: DurableObjectState, env: FreeSyncEnv) {
+  constructor(ctx: DurableObjectState, env: BonfireEnv) {
     super(ctx, env);
     this.cfg = loadConfig(env);
     this.store = new Store(ctx.storage.sql, this.cfg.chunkDepth, this.cfg.maxChunkBytes);
@@ -190,7 +190,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     const headers: Record<string, string> = {
       ETag: etag,
       "Cache-Control": `public, max-age=${this.cfg.snapshotMaxAge}`,
-      "X-FreeSync-Rev": String(this.store.currentRev()),
+      "X-Bonfire-Rev": String(this.store.currentRev()),
       "Content-Type": "application/json",
     };
     if (ifNoneMatch === etag) return new Response(null, { status: 304, headers });

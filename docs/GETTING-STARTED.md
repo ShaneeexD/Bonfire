@@ -1,4 +1,4 @@
-# Getting started with the FreeSync client
+# Getting started with the Bonfire client
 
 This guide takes you from an empty folder to a working program in a few minutes. Pick your path:
 
@@ -9,7 +9,7 @@ This guide takes you from an empty folder to a working program in a few minutes.
 
 ## Before you start: a server
 
-The client talks to **your own** FreeSync server. You need its URL and a key:
+The client talks to **your own** Bonfire server. You need its URL and a key:
 
 - **To try things out:** run a local server. Clone this repository, then:
 
@@ -24,7 +24,7 @@ The client talks to **your own** FreeSync server. You need its URL and a key:
   `dev-write-key`.
 - **For real use:** deploy it to Cloudflare for free (about 5 minutes). See
   [Deploy to Cloudflare](../README.md#deploy-to-cloudflare). The URL looks like
-  `wss://freesync.<you>.workers.dev`. Use the **read key** in anything you give to players.
+  `wss://bonfire.<you>.workers.dev`. Use the **read key** in anything you give to players.
 
 With the read key, the example server rules let each player write only under their own
 `players/<id>` and `presence/<id>`, plus `chat/`. The examples below stick to those paths.
@@ -35,30 +35,30 @@ With the read key, the example server rules let each player write only under the
 - the [.NET SDK](https://dotnet.microsoft.com/download), version 8 or newer;
 - [VS Code](https://code.visualstudio.com) with the **C# Dev Kit** extension.
 
-**2. Create a project and add FreeSync:**
+**2. Create a project and add Bonfire:**
 
 ```bash
-dotnet new console -n MyFreeSyncApp
-cd MyFreeSyncApp
-dotnet add package FreeSync
+dotnet new console -n MyBonfireApp
+cd MyBonfireApp
+dotnet add package Bonfire
 code .
 ```
 
-If FreeSync isn't on nuget.org yet, use the `.nupkg` from the repository's **Releases** page
-instead. Put it in a `packages` folder **beside** the `MyFreeSyncApp` folder. Then, inside
-`MyFreeSyncApp`, register that folder as a package source so every machine that builds the project
+If Bonfire isn't on nuget.org yet, use the `.nupkg` from the repository's **Releases** page
+instead. Put it in a `packages` folder **beside** the `MyBonfireApp` folder. Then, inside
+`MyBonfireApp`, register that folder as a package source so every machine that builds the project
 can find it:
 
 ```bash
 dotnet new nugetconfig
 dotnet nuget add source ../packages --name local --configfile nuget.config
-dotnet add package FreeSync
+dotnet add package Bonfire
 ```
 
 **3. Replace `Program.cs` with:**
 
 ```csharp
-using FreeSync;
+using Bonfire;
 
 // Use your server's URL and READ key. These are the local `npm run dev` defaults.
 const string Url = "ws://127.0.0.1:8787";
@@ -68,10 +68,10 @@ Console.Write("Your name: ");
 var name = Console.ReadLine();
 if (string.IsNullOrWhiteSpace(name)) name = "guest";
 
-var db = new FreeSyncClient(Url, room: "getting-started", key: ReadKey, new FreeSyncOptions
+var db = new BonfireClient(Url, room: "getting-started", key: ReadKey, new BonfireOptions
 {
     // A secret token saved on disk gives this user the same id (db.ClientId) every time.
-    ClientToken = FreeSyncClient.LoadOrCreateToken($"{name}.token"),
+    ClientToken = BonfireClient.LoadOrCreateToken($"{name}.token"),
 });
 
 db.StateChanged += state => Console.WriteLine($"[{state}]");
@@ -118,27 +118,27 @@ Next steps:
 
 ## A BepInEx or MelonLoader mod
 
-Mods run inside the game's Mono runtime, so use the **netstandard2.0** build of `FreeSync.dll`. It's a
+Mods run inside the game's Mono runtime, so use the **netstandard2.0** build of `Bonfire.dll`. It's a
 single file with no dependencies.
 
 **1. Get the DLL.** Use either of these:
-- **Download it:** get `FreeSync-Client-<version>.zip` from the repository's **Releases** page and
-  take `netstandard2.0/FreeSync.dll`. Put it in a `lib` folder in your mod project, and add this to
+- **Download it:** get `Bonfire-Client-<version>.zip` from the repository's **Releases** page and
+  take `netstandard2.0/Bonfire.dll`. Put it in a `lib` folder in your mod project, and add this to
   your mod's `.csproj`:
 
   ```xml
   <ItemGroup>
-    <Reference Include="FreeSync">
-      <HintPath>lib\FreeSync.dll</HintPath>
+    <Reference Include="Bonfire">
+      <HintPath>lib\Bonfire.dll</HintPath>
     </Reference>
   </ItemGroup>
   ```
 
-- **Use NuGet:** `dotnet add package FreeSync`. Class libraries don't copy NuGet DLLs to their
+- **Use NuGet:** `dotnet add package Bonfire`. Class libraries don't copy NuGet DLLs to their
   output by default, so also add `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>` to
-  the `<PropertyGroup>` if you want `FreeSync.dll` next to your mod's DLL after building.
+  the `<PropertyGroup>` if you want `Bonfire.dll` next to your mod's DLL after building.
 
-**2. Ship it.** Put `FreeSync.dll` next to your mod's DLL:
+**2. Ship it.** Put `Bonfire.dll` next to your mod's DLL:
 - BepInEx: `BepInEx/plugins/YourMod/`
 - MelonLoader: `UserLibs/` (or `Mods/`)
 
@@ -147,18 +147,18 @@ them from `Update()`:
 
 ```csharp
 using BepInEx;
-using FreeSync;
+using Bonfire;
 using UnityEngine;
 
-[BepInPlugin("com.you.freesyncmod", "FreeSync Mod", "1.0.0")]
-public class FreeSyncMod : BaseUnityPlugin
+[BepInPlugin("com.you.bonfiremod", "Bonfire Mod", "1.0.0")]
+public class BonfireMod : BaseUnityPlugin
 {
-    private FreeSyncClient? _db;
+    private BonfireClient? _db;
 
     private void Awake()
     {
-        var token = FreeSyncClient.LoadOrCreateToken(System.IO.Path.Combine(Paths.ConfigPath, "freesync.token"));
-        _db = new FreeSyncClient("wss://freesync.you.workers.dev", "global", "your-read-key", new FreeSyncOptions
+        var token = BonfireClient.LoadOrCreateToken(System.IO.Path.Combine(Paths.ConfigPath, "bonfire.token"));
+        _db = new BonfireClient("wss://bonfire.you.workers.dev", "global", "your-read-key", new BonfireOptions
         {
             ClientToken = token,
             EventDispatch = EventDispatchMode.Queued,  // callbacks wait for Dispatch() below
@@ -166,11 +166,11 @@ public class FreeSyncMod : BaseUnityPlugin
         });
 
         _db.Ref("players").OnValue(snap => Logger.LogInfo($"{snap.ChildrenCount} players"));
-        _db.StateChanged += state => Logger.LogInfo($"FreeSync: {state}");
+        _db.StateChanged += state => Logger.LogInfo($"Bonfire: {state}");
         _ = _db.Ref($"players/{_db.ClientId}/name").SetAsync(SystemInfo.deviceName);
     }
 
-    private void Update() => _db?.Dispatch();   // runs FreeSync callbacks on the main thread
+    private void Update() => _db?.Dispatch();   // runs Bonfire callbacks on the main thread
 
     private void OnDestroy() => _db?.Dispose();
 }
@@ -198,7 +198,7 @@ server mod, a website with logins, or a Discord bot. The server then treats the 
 2. **Issue a token on your backend** when a player logs in:
 
    ```csharp
-   string token = FreeSyncIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
+   string token = BonfireIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
    ```
 
    Backends in other languages can use any HS256 JWT library with `{"sub": playerId}` and an expiry,
@@ -206,9 +206,9 @@ server mod, a website with logins, or a Discord bot. The server then treats the 
 3. **Pass it to the client** in the mod:
 
    ```csharp
-   var db = new FreeSyncClient(url, room, readKey, new FreeSyncOptions
+   var db = new BonfireClient(url, room, readKey, new BonfireOptions
    {
-       IdentityTokenProvider = () => MyBackend.GetFreeSyncTokenAsync(),  // fresh token on every (re)connect
+       IdentityTokenProvider = () => MyBackend.GetBonfireTokenAsync(),  // fresh token on every (re)connect
    });
    ```
 
@@ -223,11 +223,11 @@ server mod, a website with logins, or a Discord bot. The server then treats the 
 
 ## A Unity project
 
-1. Copy `netstandard2.0/FreeSync.dll` (from the Releases zip) into `Assets/Plugins/`.
+1. Copy `netstandard2.0/Bonfire.dll` (from the Releases zip) into `Assets/Plugins/`.
 2. Add a component that creates the client with `EventDispatch = EventDispatchMode.Queued` and calls
    `db.Dispatch()` in `Update()`.
 
-[`samples/unity/FreeSyncExample.cs`](../samples/unity/FreeSyncExample.cs) is a complete
+[`samples/unity/BonfireExample.cs`](../samples/unity/BonfireExample.cs) is a complete
 MonoBehaviour that shares a GameObject's position with everyone in a room. Its
 [README](../samples/unity/README.md) has notes on IL2CPP and platforms. WebGL isn't supported.
 
@@ -237,6 +237,6 @@ MonoBehaviour that shares a GameObject's position with everyone in a room. Its
 |---|---|
 | Stuck on `Connecting` / `Reconnecting` | Check the URL: `ws://` for local, `wss://` for Cloudflare, with no path after the host. Is the server running? |
 | `[Reconnecting]` and HTTP 401 in the log | Wrong key. |
-| A write throws `FreeSyncException` with `permission_denied` | The server rules don't allow that path for the read key (see `RULES` in `server/wrangler.jsonc`). |
+| A write throws `BonfireException` with `permission_denied` | The server rules don't allow that path for the read key (see `RULES` in `server/wrangler.jsonc`). |
 | Callbacks never run in Unity or a mod | With `EventDispatchMode.Queued` you must call `db.Dispatch()` every frame. |
-| `dotnet add package FreeSync` can't find the package | It isn't on nuget.org yet: use the `.nupkg` from Releases as shown above. |
+| `dotnet add package Bonfire` can't find the package | It isn't on nuget.org yet: use the `.nupkg` from Releases as shown above. |

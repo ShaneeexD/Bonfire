@@ -5,10 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using FreeSync.Internal;
-using FreeSync.Json;
+using Bonfire.Internal;
+using Bonfire.Json;
 
-namespace FreeSync.Tests
+namespace Bonfire.Tests
 {
     /// <summary>Hands out scripted in-memory sockets so tests can play the server's side of the protocol.</summary>
     internal sealed class MockServer
@@ -90,7 +90,7 @@ namespace FreeSync.Tests
 
         // ---- server side ----
 
-        public void Push(object message) => _toClient.Writer.TryWrite(message as string ?? FsJson.Serialize(BuiltInJsonSerializer.ToTree(message)));
+        public void Push(object message) => _toClient.Writer.TryWrite(message as string ?? BonfireJson.Serialize(BuiltInJsonSerializer.ToTree(message)));
 
         public void Drop(int? code = null)
         {
@@ -103,7 +103,7 @@ namespace FreeSync.Tests
         {
             using var cts = new CancellationTokenSource(timeoutMs);
             var text = await _fromClient.Reader.ReadAsync(cts.Token);
-            var parsed = FsJson.Parse(text);
+            var parsed = BonfireJson.Parse(text);
             return parsed is List<object?> list ? list.Cast<Dictionary<string, object?>>().ToList() : new List<Dictionary<string, object?>> { (Dictionary<string, object?>)parsed! };
         }
 

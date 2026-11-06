@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 dotnet build -nologo -v q | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "build failed" }
-$exe = Join-Path $PSScriptRoot "bin\Debug\net10.0-windows\FreeSyncVisualDemo.exe"
+$exe = Join-Path $PSScriptRoot "bin\Debug\net10.0-windows\BonfireVisualDemo.exe"
 Start-Process $exe -ArgumentList "--name", "Ann", "--room", $Room, "--autoconnect"
 Start-Sleep -Milliseconds 800
 Start-Process $exe -ArgumentList "--name", "Bob", "--room", $Room, "--autoconnect", "--auto"

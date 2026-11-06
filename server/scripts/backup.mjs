@@ -8,7 +8,7 @@
 // The file is the same format the database editor exports and can restore.
 import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fail, loadConfig, parseArgs } from "./freesync-config.mjs";
+import { fail, loadConfig, parseArgs } from "./bonfire-config.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const room = args.room;
@@ -26,12 +26,12 @@ const value = await res.json();
 
 const created = new Date();
 const backup = {
-  format: "freesync-backup",
+  format: "bonfire-backup",
   version: 1,
   room,
   kind: "export",
   createdAt: created.toISOString(),
-  rev: Number(res.headers.get("X-FreeSync-Rev") ?? 0),
+  rev: Number(res.headers.get("X-Bonfire-Rev") ?? 0),
   note: "npm run backup",
   entries: [{ path, value }],
 };

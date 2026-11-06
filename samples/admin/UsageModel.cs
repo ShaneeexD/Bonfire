@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>One bar on the usage panel. <see cref="Max"/> null means "just a count".</summary>
 public sealed record Meter(string Label, double Value, double? Max, string Text, string Hint);

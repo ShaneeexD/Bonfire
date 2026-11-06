@@ -1,10 +1,10 @@
 using System.Text.Json;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>
-/// Helpers for the plain JSON trees FreeSync hands out (Dictionary / List / string / long / double / bool / null).
+/// Helpers for the plain JSON trees Bonfire hands out (Dictionary / List / string / long / double / bool / null).
 /// Trees are never mutated in place: <see cref="SetIn"/> copies only the objects along the changed path.
 /// </summary>
 public static class JsonUtil
@@ -77,11 +77,11 @@ public static class JsonUtil
         }
     }
 
-    public static string Compact(object? v) => FsJson.Serialize(v);
+    public static string Compact(object? v) => BonfireJson.Serialize(v);
 
     public static string Pretty(object? v)
     {
-        using var doc = JsonDocument.Parse(FsJson.Serialize(v));
+        using var doc = JsonDocument.Parse(BonfireJson.Serialize(v));
         return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
     }
 
@@ -92,7 +92,7 @@ public static class JsonUtil
         {
             null => "",
             string str => str,
-            _ => FsJson.Serialize(v),
+            _ => BonfireJson.Serialize(v),
         };
         return s.Length <= max ? s : s[..(max - 1)] + "…";
     }
@@ -106,5 +106,5 @@ public static class JsonUtil
         _ => throw new InvalidCastException(),
     };
 
-    public static bool DeepEquals(object? a, object? b) => FsJson.Serialize(a) == FsJson.Serialize(b);
+    public static bool DeepEquals(object? a, object? b) => BonfireJson.Serialize(a) == BonfireJson.Serialize(b);
 }

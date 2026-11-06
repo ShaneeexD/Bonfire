@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace FreeSync.Json
+namespace Bonfire.Json
 {
     /// <summary>
     /// A small, dependency-free JSON reader and writer working on a plain object tree:
     /// <see cref="Dictionary{TKey,TValue}"/> (string → object?) for objects, <see cref="List{T}"/> of object? for arrays,
     /// and <see cref="string"/>, <see cref="long"/>, <see cref="double"/>, <see cref="bool"/> or <c>null</c> for scalars.
     /// </summary>
-    public static class FsJson
+    public static class BonfireJson
     {
         /// <summary>Parses JSON text into an object tree.</summary>
         /// <exception cref="FormatException">The text is not valid JSON.</exception>
@@ -100,7 +100,7 @@ namespace FreeSync.Json
                     return;
                 }
                 default:
-                    throw new FormatException($"FsJson cannot write values of type {value.GetType().FullName}; use an IJsonSerializer");
+                    throw new FormatException($"BonfireJson cannot write values of type {value.GetType().FullName}; use an IJsonSerializer");
             }
         }
 

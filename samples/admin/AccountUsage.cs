@@ -1,7 +1,7 @@
 using System.Text;
-using FreeSync.Json;
+using Bonfire.Json;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>Today's (UTC) account-wide usage, as Cloudflare's GraphQL Analytics API reports it.</summary>
 public sealed record AccountUsage(
@@ -40,7 +40,7 @@ public static class AccountUsageModel
     public static async Task<AccountUsage> FetchAsync(HttpClient http, string token, string accountId, DateTime nowUtc, CancellationToken ct = default)
     {
         var day = nowUtc.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        var body = FsJson.Serialize(new Dictionary<string, object?>
+        var body = BonfireJson.Serialize(new Dictionary<string, object?>
         {
             ["query"] = Query,
             ["variables"] = new Dictionary<string, object?> { ["a"] = accountId.Trim(), ["d"] = day, ["since"] = day + "T00:00:00Z" },
@@ -54,7 +54,7 @@ public static class AccountUsageModel
         var text = await res.Content.ReadAsStringAsync(ct);
         if ((int)res.StatusCode is 401 or 403) throw new FormatException("Cloudflare refused the API token (it needs Account → Account Analytics → Read).");
         if (!res.IsSuccessStatusCode) throw new FormatException($"Cloudflare analytics returned HTTP {(int)res.StatusCode}.");
-        return Parse(FsJson.Parse(text));
+        return Parse(BonfireJson.Parse(text));
     }
 
     /// <summary>Reads the GraphQL response. Throws <see cref="FormatException"/> with the API's message on errors.</summary>

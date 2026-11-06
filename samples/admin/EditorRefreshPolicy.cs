@@ -1,4 +1,4 @@
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>What a live data refresh should do to the value editor.</summary>
 public enum EditorRefresh

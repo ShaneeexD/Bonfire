@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FreeSync\FreeSync.csproj" />
+    <ProjectReference Include="..\Bonfire\Bonfire.csproj" />
   </ItemGroup>
 
 </Project>

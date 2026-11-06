@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Compile-checks ../FreeSyncExample.cs against FreeSync's netstandard2.0 build (what Unity/Mono loads). -->
+  <!-- Compile-checks ../BonfireExample.cs against Bonfire's netstandard2.0 build (what Unity/Mono loads). -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>9.0</LangVersion>
@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../FreeSyncExample.cs" />
-    <ProjectReference Include="../../../client/FreeSync/FreeSync.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+    <Compile Include="../BonfireExample.cs" />
+    <ProjectReference Include="../../../client/Bonfire/Bonfire.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
   </ItemGroup>
 </Project>

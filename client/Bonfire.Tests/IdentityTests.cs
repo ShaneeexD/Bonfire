@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace FreeSync.Tests
+namespace Bonfire.Tests
 {
     public class IdentityTests
     {
@@ -16,27 +16,27 @@ namespace FreeSync.Tests
         [Fact]
         public void CreatesTheSameTokenAsTheServer()
         {
-            var token = FreeSyncIdentity.Create("vector-secret", "player-42", Epoch.AddSeconds(1800000000), Epoch.AddSeconds(1800086400), "global");
+            var token = BonfireIdentity.Create("vector-secret", "player-42", Epoch.AddSeconds(1800000000), Epoch.AddSeconds(1800086400), "global");
             Assert.Equal(Vector, token);
-            Assert.Equal("player-42", FreeSyncIdentity.ReadPlayerId(token));
-            Assert.Equal(Epoch.AddSeconds(1800086400), FreeSyncIdentity.ReadExpiry(token));
+            Assert.Equal("player-42", BonfireIdentity.ReadPlayerId(token));
+            Assert.Equal(Epoch.AddSeconds(1800086400), BonfireIdentity.ReadExpiry(token));
         }
 
         [Fact]
         public void RefusesUnusablePlayerIdsAndUnreadableTokens()
         {
-            Assert.Throws<ArgumentException>(() => FreeSyncIdentity.Create("s", "a/b", TimeSpan.FromHours(1)));
-            Assert.Throws<ArgumentException>(() => FreeSyncIdentity.Create("", "p1", TimeSpan.FromHours(1)));
-            Assert.Null(FreeSyncIdentity.ReadPlayerId("not a token"));
-            Assert.Null(FreeSyncIdentity.ReadExpiry("a.b.c"));
+            Assert.Throws<ArgumentException>(() => BonfireIdentity.Create("s", "a/b", TimeSpan.FromHours(1)));
+            Assert.Throws<ArgumentException>(() => BonfireIdentity.Create("", "p1", TimeSpan.FromHours(1)));
+            Assert.Null(BonfireIdentity.ReadPlayerId("not a token"));
+            Assert.Null(BonfireIdentity.ReadExpiry("a.b.c"));
         }
 
         [Fact]
         public async Task ClientSendsTheTokenAndUsesItsPlayerId()
         {
             var server = new MockServer();
-            var token = FreeSyncIdentity.Create("secret", "steam-123", TimeSpan.FromHours(1));
-            using var db = new FreeSyncClient("wss://example.test", "global", "read-key", new FreeSyncOptions
+            var token = BonfireIdentity.Create("secret", "steam-123", TimeSpan.FromHours(1));
+            using var db = new BonfireClient("wss://example.test", "global", "read-key", new BonfireOptions
             {
                 SocketFactory = server.Create,
                 EventDispatch = EventDispatchMode.Immediate,
@@ -45,7 +45,7 @@ namespace FreeSync.Tests
             });
             Assert.Equal("steam-123", db.ClientId); // known before connecting
             var s = await server.NextConnection();
-            Assert.Equal(token, server.LastHeaders!["X-FreeSync-Identity"]);
+            Assert.Equal(token, server.LastHeaders!["X-Bonfire-Identity"]);
             s.Push(new { t = "welcome", v = 1, cid = "steam-123", role = "public", verified = true, rev = 1, lim = new { frame = 65536, ops = 100 } });
             for (var i = 0; i < 100 && !db.IsVerified; i++) await Task.Delay(10);
             Assert.True(db.IsVerified);
@@ -56,7 +56,7 @@ namespace FreeSync.Tests
         {
             var server = new MockServer();
             var calls = 0;
-            using var db = new FreeSyncClient("wss://example.test", "global", "read-key", new FreeSyncOptions
+            using var db = new BonfireClient("wss://example.test", "global", "read-key", new BonfireOptions
             {
                 SocketFactory = server.Create,
                 EventDispatch = EventDispatchMode.Immediate,
@@ -65,14 +65,14 @@ namespace FreeSync.Tests
                 IdentityTokenProvider = () =>
                 {
                     var n = Interlocked.Increment(ref calls);
-                    return Task.FromResult<string?>(FreeSyncIdentity.Create("secret", "p" + n, TimeSpan.FromMinutes(5)));
+                    return Task.FromResult<string?>(BonfireIdentity.Create("secret", "p" + n, TimeSpan.FromMinutes(5)));
                 },
             });
             var first = await server.NextConnection();
-            Assert.Equal("p1", FreeSyncIdentity.ReadPlayerId(server.LastHeaders!["X-FreeSync-Identity"]));
+            Assert.Equal("p1", BonfireIdentity.ReadPlayerId(server.LastHeaders!["X-Bonfire-Identity"]));
             first.Drop();
             await server.NextConnection();
-            Assert.Equal("p2", FreeSyncIdentity.ReadPlayerId(server.LastHeaders!["X-FreeSync-Identity"]));
+            Assert.Equal("p2", BonfireIdentity.ReadPlayerId(server.LastHeaders!["X-Bonfire-Identity"]));
             Assert.Equal("p2", db.ClientId);
         }
     }

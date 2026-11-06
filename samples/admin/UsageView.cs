@@ -1,4 +1,4 @@
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 /// <summary>A horizontal bar with its text drawn on top; green, then orange from 70%, red from 90%.</summary>
 public sealed class MeterBar : Control

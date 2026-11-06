@@ -1,4 +1,4 @@
-# FreeSync
+# Bonfire
 
 A small, free, Firebase-style **realtime JSON database** for game mods and hobby projects. It runs
 entirely on Cloudflare's free Workers plan (Durable Objects with WebSocket Hibernation), with a
@@ -6,8 +6,8 @@ dependency-free C# client for Unity mods (BepInEx, MelonLoader) and .NET apps. I
 Windows **database app** for browsing and editing data, with SQL and a usage meter.
 
 ```csharp
-var db = new FreeSyncClient("wss://freesync.you.workers.dev", room: "global", key: "public-read-key",
-    new FreeSyncOptions { ClientToken = FreeSyncClient.LoadOrCreateToken("freesync.token") });
+var db = new BonfireClient("wss://bonfire.you.workers.dev", room: "global", key: "public-read-key",
+    new BonfireOptions { ClientToken = BonfireClient.LoadOrCreateToken("bonfire.token") });
 
 db.Ref("scores").OnValue(snapshot => Console.WriteLine(snapshot.ToJson()));
 await db.Ref($"players/{db.ClientId}/score").SetAsync(42);
@@ -44,16 +44,16 @@ nothing to build:
 
 | File | What |
 |---|---|
-| `FreeSync-DatabaseEditor-<version>-win-x64.zip` | **Database editor** for Windows 10/11: browse and edit data, SQL, batch submit, usage meter. Unzip and run `FreeSyncAdmin.exe`; no .NET install needed. |
-| `FreeSync-VisualDemo-<version>-win-x64.zip` | **Visual demo** for Windows: run `FreeSyncVisualDemo.exe` twice to watch two clients sync. |
-| `FreeSync-Client-<version>.zip` | **Client library**: `FreeSync.dll` for mods (`netstandard2.0`) and .NET apps (`net10.0`), plus serializer adapters. |
-| `FreeSync.<version>.nupkg` | **NuGet package** for .NET projects: `dotnet add package FreeSync`. Use this file if the package isn't on nuget.org yet; [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) shows how. |
+| `Bonfire-DatabaseEditor-<version>-win-x64.zip` | **Database editor** for Windows 10/11: browse and edit data, SQL, batch submit, usage meter. Unzip and run `BonfireAdmin.exe`; no .NET install needed. |
+| `Bonfire-VisualDemo-<version>-win-x64.zip` | **Visual demo** for Windows: run `BonfireVisualDemo.exe` twice to watch two clients sync. |
+| `Bonfire-Client-<version>.zip` | **Client library**: `Bonfire.dll` for mods (`netstandard2.0`) and .NET apps (`net10.0`), plus serializer adapters. |
+| `Bonfire.<version>.nupkg` | **NuGet package** for .NET projects: `dotnet add package Bonfire`. Use this file if the package isn't on nuget.org yet; [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) shows how. |
 
-The apps talk to **your own** FreeSync server, so [deploy one](#deploy-to-cloudflare) first (it's free).
+The apps talk to **your own** Bonfire server, so [deploy one](#deploy-to-cloudflare) first (it's free).
 
 - **First launch:** enter the server URL (`wss://<name>.<subdomain>.workers.dev`), a room and a key,
   then press **Connect**. They're remembered for next time.
-- **Where settings are saved:** in `%APPDATA%\FreeSync`. Keys are encrypted for your Windows account.
+- **Where settings are saved:** in `%APPDATA%\Bonfire`. Keys are encrypted for your Windows account.
 - **"Windows protected your PC":** this warning appears because the exes aren't code-signed. Choose
   **More info → Run anyway**.
 
@@ -128,7 +128,7 @@ Sources and numbers: [docs/LIMITS.md](docs/LIMITS.md).
 | Folder | What |
 |---|---|
 | [`server/`](server) | Cloudflare Worker + Durable Object (TypeScript), `wrangler.jsonc`, Vitest tests |
-| [`client/`](client) | `FreeSync` C# library (`netstandard2.0` + `net10.0`, no dependencies), xUnit tests, optional serializer [adapters](client/adapters) |
+| [`client/`](client) | `Bonfire` C# library (`netstandard2.0` + `net10.0`, no dependencies), xUnit tests, optional serializer [adapters](client/adapters) |
 | [`samples/admin/`](samples/admin) | **Database app** (Windows): tree editor, SQL, batch submit, usage meter |
 | [`samples/visual/`](samples/visual) | Windows demo: run it twice and watch players move, score and chat live |
 | [`samples/console/`](samples/console) | Console demo (any OS) |
@@ -209,13 +209,13 @@ Worker is never live without keys:
 npx wrangler deploy --secrets-file .deploy-keys.env
 ```
 
-Wrangler prints your URL, e.g. `https://freesync.<your-subdomain>.workers.dev`. Clients use the same
+Wrangler prints your URL, e.g. `https://bonfire.<your-subdomain>.workers.dev`. Clients use the same
 address with `wss://`.
 
 **4. Let the samples and database app find it.** Save the URL to `server/.deployed-url` (git-ignored):
 
 ```bash
-echo wss://freesync.<your-subdomain>.workers.dev > .deployed-url
+echo wss://bonfire.<your-subdomain>.workers.dev > .deployed-url
 ```
 
 From then on, the visual demo connects to your live Worker with the read key, and the database app
@@ -225,8 +225,8 @@ uses the write key. Without this file they use the local `wrangler dev` server. 
 **5. Check it:**
 
 ```bash
-curl https://freesync.<your-subdomain>.workers.dev/
-curl "https://freesync.<your-subdomain>.workers.dev/db/global/snapshot?path=&key=<READ_KEY>"
+curl https://bonfire.<your-subdomain>.workers.dev/
+curl "https://bonfire.<your-subdomain>.workers.dev/db/global/snapshot?path=&key=<READ_KEY>"
 ```
 
 **Later:**
@@ -243,23 +243,23 @@ The same file has all the size and rate limits. See [docs/SECURITY.md](docs/SECU
 
 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) has step-by-step guides. In short:
 
-| Project | How to add FreeSync |
+| Project | How to add Bonfire |
 |---|---|
-| .NET app (VS Code, Visual Studio, Rider) | `dotnet add package FreeSync` |
-| BepInEx or MelonLoader mod | Reference `netstandard2.0/FreeSync.dll` from the [Releases](#download) zip, and ship it next to your mod |
-| Unity project | Copy `netstandard2.0/FreeSync.dll` into `Assets/Plugins/` |
-| Working on FreeSync itself | Add a project reference to `client/FreeSync/FreeSync.csproj` |
+| .NET app (VS Code, Visual Studio, Rider) | `dotnet add package Bonfire` |
+| BepInEx or MelonLoader mod | Reference `netstandard2.0/Bonfire.dll` from the [Releases](#download) zip, and ship it next to your mod |
+| Unity project | Copy `netstandard2.0/Bonfire.dll` into `Assets/Plugins/` |
+| Working on Bonfire itself | Add a project reference to `client/Bonfire/Bonfire.csproj` |
 
 It's a single DLL with no dependencies.
 
 ```csharp
-using FreeSync;
+using Bonfire;
 
-var db = new FreeSyncClient("wss://freesync.you.workers.dev", "global", "your-read-key", new FreeSyncOptions
+var db = new BonfireClient("wss://bonfire.you.workers.dev", "global", "your-read-key", new BonfireOptions
 {
     // A secret per-install token gives this player a stable id (db.ClientId), used by rules like players/$cid.
-    ClientToken = FreeSyncClient.LoadOrCreateToken("freesync.token"),
-    CacheDirectory = "freesync-cache",            // optional: show last known data instantly on the next start
+    ClientToken = BonfireClient.LoadOrCreateToken("bonfire.token"),
+    CacheDirectory = "bonfire-cache",            // optional: show last known data instantly on the next start
     EventDispatch = EventDispatchMode.Queued,     // Unity: call db.Dispatch() from Update()
 });
 
@@ -301,7 +301,7 @@ db.Dispose();   // closes cleanly; the server runs onDisconnect writes
 - `PendingWriteCount`.
 - `GoOffline()` and `GoOnline()`.
 
-Refused writes throw `FreeSyncException` with a `Code` such as `permission_denied`, `rate_limited` or
+Refused writes throw `BonfireException` with a `Code` such as `permission_denied`, `rate_limited` or
 `write_quota`.
 
 **Verified players (optional):** if your own backend knows who a player is (a game server, server mod,
@@ -309,10 +309,10 @@ website or bot), it can sign an identity token. Rules can then trust the id with
 
 ```csharp
 // On your backend, which knows IDENTITY_SECRET. Never put the secret in a mod.
-string token = FreeSyncIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
+string token = BonfireIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
 
 // In the mod, using the token from your backend:
-var db = new FreeSyncClient(url, "global", readKey, new FreeSyncOptions { IdentityToken = token });
+var db = new BonfireClient(url, "global", readKey, new BonfireOptions { IdentityToken = token });
 // db.ClientId == playerId, and db.IsVerified is true once connected.
 ```
 
@@ -333,8 +333,8 @@ WebGL isn't supported.
 A Windows app for looking at and editing a room's data like a database. Its
 [README](samples/admin/README.md) has everything in detail.
 
-- **Download:** get `FreeSync-DatabaseEditor-…zip` from [Releases](#download), unzip it, and run
-  `FreeSyncAdmin.exe`. Enter your server URL, the room and your **write key**, then press
+- **Download:** get `Bonfire-DatabaseEditor-…zip` from [Releases](#download), unzip it, and run
+  `BonfireAdmin.exe`. Enter your server URL, the room and your **write key**, then press
   **Connect**. They're remembered, with the key encrypted for your Windows account (untick
   **Remember** to skip saving the key).
 - **From source:**
@@ -415,7 +415,7 @@ All of these are git-ignored. Never commit them.
 | `server/.analytics-token` | Cloudflare API token (Account Analytics: Read) | Database app usage meter |
 | `server/.cloudflare-account` | Your Cloudflare account ID | Database app usage meter |
 
-The downloaded apps keep their settings in `%APPDATA%\FreeSync` instead (`admin-editor.json`,
+The downloaded apps keep their settings in `%APPDATA%\Bonfire` instead (`admin-editor.json`,
 `visual-demo.json`, and `visual-demo-tokens\` for player ids). Keys and the API token there are
 encrypted with Windows DPAPI, so the files are useless on another PC or Windows account. Delete the
 folder to forget everything.
@@ -427,8 +427,8 @@ write. The **write key** and the **API token** are secrets.
 
 ```bash
 cd server && npm test                                                   # Worker + Durable Object (Vitest, real workerd runtime)
-dotnet test --project client/FreeSync.Tests/FreeSync.Tests.csproj       # C# client (xUnit)
-dotnet test --project samples/admin/Tests/FreeSync.AdminEditor.Tests.csproj   # SQL engine, batching, usage meter
+dotnet test --project client/Bonfire.Tests/Bonfire.Tests.csproj       # C# client (xUnit)
+dotnet test --project samples/admin/Tests/Bonfire.AdminEditor.Tests.csproj   # SQL engine, batching, usage meter
 ```
 
 ## Backups
@@ -466,16 +466,16 @@ git push origin v0.1.0
 Running the workflow by hand from the Actions tab builds the same files as a downloadable artifact,
 without creating a release.
 
-The release also includes the NuGet package (`FreeSync.<version>.nupkg` and its `.snupkg` symbols).
-To have the workflow publish it to **nuget.org** automatically, so `dotnet add package FreeSync` just
+The release also includes the NuGet package (`Bonfire.<version>.nupkg` and its `.snupkg` symbols).
+To have the workflow publish it to **nuget.org** automatically, so `dotnet add package Bonfire` just
 works:
 
 1. Sign in at https://www.nuget.org and create an API key (**API Keys → Create**) with the **Push**
-   scope, limited to the glob pattern `FreeSync`.
+   scope, limited to the glob pattern `Bonfire`.
 2. In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository
    secret** and add it as `NUGET_API_KEY`.
 
-Without the secret, that step is skipped. The first push claims the package name `FreeSync` for your
+Without the secret, that step is skipped. The first push claims the package name `Bonfire` for your
 nuget.org account.
 
 ## Troubleshooting
@@ -504,6 +504,6 @@ nuget.org account.
 
 ## Licence
 
-[MIT](LICENSE). You may use, change and redistribute FreeSync, including in commercial and
+[MIT](LICENSE). You may use, change and redistribute Bonfire, including in commercial and
 closed-source mods, as long as the licence notice is kept. Every release zip and the NuGet package
 include it.

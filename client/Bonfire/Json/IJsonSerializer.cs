@@ -1,9 +1,9 @@
 using System;
 
-namespace FreeSync.Json
+namespace Bonfire.Json
 {
     /// <summary>
-    /// Converts between your own types and JSON text. FreeSync uses this whenever you write a value or read one
+    /// Converts between your own types and JSON text. Bonfire uses this whenever you write a value or read one
     /// back with <see cref="DataSnapshot.GetValue{T}"/>. The default is <see cref="BuiltInJsonSerializer"/>; the
     /// <c>adapters</c> folder has drop-in implementations for Newtonsoft.Json and System.Text.Json.
     /// </summary>

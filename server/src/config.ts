@@ -35,7 +35,7 @@ export interface Config {
   rules: RulesConfig;
 }
 
-export interface FreeSyncEnv {
+export interface BonfireEnv {
   ROOM: DurableObjectNamespace;
   READ_KEY?: string;
   WRITE_KEY?: string;
@@ -57,7 +57,7 @@ function rules(v: unknown): RulesConfig {
   return { ...DEFAULT_RULES, ...(obj as RulesConfig) };
 }
 
-export function loadConfig(env: FreeSyncEnv): Config {
+export function loadConfig(env: BonfireEnv): Config {
   return {
     chunkDepth: Math.floor(num(env.CHUNK_DEPTH, 2, 1)),
     maxFrameBytes: num(env.MAX_FRAME_BYTES, 64 * 1024, 256),

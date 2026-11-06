@@ -1,4 +1,4 @@
-# FreeSync design plan (Milestone 1, for review)
+# Bonfire design plan (Milestone 1, for review)
 
 The numbers behind these decisions are in [LIMITS.md](LIMITS.md).
 
@@ -133,7 +133,7 @@ Text frames, JSON, short keys. A client frame is one message or an array of mess
 - **Version:** the URL carries `?v=1` and `welcome` echoes it. An unsupported version is rejected by
   the Worker with HTTP 426.
 - **`hello` is folded into the upgrade request.** The key and client token go in headers
-  (`Authorization: Bearer <key>`, `X-FreeSync-Token`), with query-string fallbacks for browsers. That
+  (`Authorization: Bearer <key>`, `X-Bonfire-Token`), with query-string fallbacks for browsers. That
   lets the Worker reject bad keys before they cost a DO request, and saves one message per
   connection. ⚠ This differs from the spec's `hello` message.
 - Close codes: `4001` auth, `4008` rate-limit abuse, `4029` quota exhausted, `4400` bad protocol.
@@ -192,7 +192,7 @@ Text frames, JSON, short keys. A client frame is one message or an array of mess
 
 ## 11. C# client
 
-- `FreeSyncClient(url, room, key, FreeSyncOptions?)` → `Ref(path)` → `Child`, `Parent`, `SetAsync`,
+- `BonfireClient(url, room, key, BonfireOptions?)` → `Ref(path)` → `Child`, `Parent`, `SetAsync`,
   `UpdateAsync`, `RemoveAsync`, `OnValue(cb)` (returns `IDisposable`), `OnDisconnect().Set/Update/Remove/Cancel`,
   `GetAsync()` (via snapshot endpoint or live cache), `Push()`. `DataSnapshot` has `Value`, `GetValue<T>()`,
   `Child()`, `Children`, `Exists`, `Rev`, `IsFromCache`.
@@ -217,10 +217,10 @@ Text frames, JSON, short keys. A client frame is one message or an array of mess
 ```
 /server          src/{index.ts, room.ts, store.ts, paths.ts, rules.ts, protocol.ts, config.ts}
                  test/*.test.ts, wrangler.jsonc, vitest.config.ts, package.json
-/client          FreeSync/FreeSync.csproj  (single assembly, no dependencies)
-                 FreeSync.Tests/ (xUnit)   adapters/{Newtonsoft,SystemTextJson}Serializer.cs
+/client          Bonfire/Bonfire.csproj  (single assembly, no dependencies)
+                 Bonfire.Tests/ (xUnit)   adapters/{Newtonsoft,SystemTextJson}Serializer.cs
 /samples/console two-instance demo (`dotnet run -- --name alice`)
-/samples/unity   FreeSyncExample.cs MonoBehaviour + README (not compiled here)
+/samples/unity   BonfireExample.cs MonoBehaviour + README (not compiled here)
 /docs            LIMITS.md, DESIGN.md, PROTOCOL.md, SECURITY.md, DEPLOY.md
 README.md
 ```

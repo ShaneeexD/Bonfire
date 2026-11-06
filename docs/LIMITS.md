@@ -1,4 +1,4 @@
-# Cloudflare Free-plan limits that shape FreeSync
+# Cloudflare Free-plan limits that shape Bonfire
 
 Researched 2026-11-04 from the Cloudflare docs (page "last updated" dates Sep–Oct 2026).
 Limits change; re-check the linked pages before relying on a number.

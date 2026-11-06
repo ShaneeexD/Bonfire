@@ -1,15 +1,15 @@
-// FreeSync admin editor: browse and edit a room's JSON document as a tree or with SQL.
+// Bonfire admin editor: browse and edit a room's JSON document as a tree or with SQL.
 //
 //   dotnet run        options: --url --room --key --path, --connect (connect at start),
 //                     --sql "query" (put a query in the SQL box), --run (run it once connected)
 //
 // Settings, later ones winning: built-in defaults (`wrangler dev` on 127.0.0.1:8787 with dev-write-key), what you
-// used last time (%APPDATA%\FreeSync\admin-editor.json; keys encrypted for your Windows account), this checkout's
+// used last time (%APPDATA%\Bonfire\admin-editor.json; keys encrypted for your Windows account), this checkout's
 // server/.deployed-url + server/.deploy-keys.env (git-ignored), then command-line options.
 
-using FreeSyncSamples;
+using BonfireSamples;
 
-namespace FreeSyncAdmin;
+namespace BonfireAdmin;
 
 internal static class Program
 {

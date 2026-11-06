@@ -4,11 +4,11 @@ A Windows Forms tool for looking at and editing a room's JSON document like a da
 you can edit by hand, plus SQL. Every change it makes shows up instantly in connected clients (try it next
 to the [visual demo](../visual)).
 
-**Download:** `FreeSync-DatabaseEditor-<version>-win-x64.zip` from the repository's Releases page. Unzip
-it and run `FreeSyncAdmin.exe`; no .NET install is needed. Enter your server URL, the room and the write
+**Download:** `Bonfire-DatabaseEditor-<version>-win-x64.zip` from the repository's Releases page. Unzip
+it and run `BonfireAdmin.exe`; no .NET install is needed. Enter your server URL, the room and the write
 key, then press **Connect**.
 
-- **Remembered settings:** they're stored in `%APPDATA%\FreeSync\admin-editor.json`, with the key
+- **Remembered settings:** they're stored in `%APPDATA%\Bonfire\admin-editor.json`, with the key
   encrypted for your Windows account. Untick **Remember** to not store the key.
 - **SmartScreen warning:** this appears because the exe isn't code-signed. Choose **More info → Run
   anyway**.
@@ -160,7 +160,7 @@ mode on), so you can review it under **Pending changes** before pressing **Submi
 
 - **Automatic backup before every submit (on by default).** Before sending anything, the editor saves
   the current server value of every path it's about to change. The files go in
-  `%APPDATA%\FreeSync\backups\<room>`, and the last 50 are kept.
+  `%APPDATA%\Bonfire\backups\<room>`, and the last 50 are kept.
   - **Undo last submit** stages the newest of these backups, putting back exactly what the last
     submit changed (values it added are removed again).
   - Pressing it again undoes the undo, because the undo was backed up too.

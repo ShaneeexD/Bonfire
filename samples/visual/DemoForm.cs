@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using FreeSync;
-using FreeSyncSamples;
+using Bonfire;
+using BonfireSamples;
 
-namespace FreeSyncVisualDemo;
+namespace BonfireVisualDemo;
 
 /// <summary>
-/// One window = one FreeSync client. Every connected player is a dot on a shared 640x480 board.
+/// One window = one Bonfire client. Every connected player is a dot on a shared 640x480 board.
 /// Positions go to players/{cid}/pos (an ephemeral path: broadcast, never stored); names and scores to
 /// players/{cid}; who is online to presence/{cid} (removed by the server when the window closes); chat to chat/.
 /// </summary>
@@ -31,7 +31,7 @@ internal sealed class DemoForm : Form
     private readonly Label _info = new() { Dock = DockStyle.Bottom, Height = 54, ForeColor = Color.DimGray };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 16 };
 
-    private FreeSyncClient? _db;
+    private BonfireClient? _db;
     private readonly List<IDisposable> _listeners = new();
     private string _me = "";
     private readonly Dictionary<string, Player> _players = new();
@@ -59,7 +59,7 @@ internal sealed class DemoForm : Form
     public DemoForm(DemoSettings settings)
     {
         _settings = settings;
-        Text = $"FreeSync visual demo - {settings.Name}";
+        Text = $"Bonfire visual demo - {settings.Name}";
         ClientSize = new Size(960, 600);
         MinimumSize = new Size(760, 480);
         KeyPreview = true;
@@ -146,9 +146,9 @@ internal sealed class DemoForm : Form
         var tokenFile = Path.Combine(SavedSettings.Folder, "visual-demo-tokens", _name.Text + ".token");
         try
         {
-            _db = new FreeSyncClient(_url.Text.Trim(), _room.Text.Trim(), _key.Text.Trim(), new FreeSyncOptions
+            _db = new BonfireClient(_url.Text.Trim(), _room.Text.Trim(), _key.Text.Trim(), new BonfireOptions
             {
-                ClientToken = FreeSyncClient.LoadOrCreateToken(tokenFile),
+                ClientToken = BonfireClient.LoadOrCreateToken(tokenFile),
                 // Created on the UI thread, so Auto posts every callback to this window's thread.
                 EventDispatch = EventDispatchMode.Auto,
             });
@@ -159,7 +159,7 @@ internal sealed class DemoForm : Form
             return;
         }
         _me = _db.ClientId!;
-        Text = $"FreeSync visual demo - {_name.Text} ({_me})";
+        Text = $"Bonfire visual demo - {_name.Text} ({_me})";
         var saved = SavedSettings.Load("visual-demo");
         saved.Set("url", _url.Text.Trim());
         saved.Set("room", _room.Text.Trim());
@@ -212,7 +212,7 @@ internal sealed class DemoForm : Form
             await _db.Ref($"players/{_me}/name").SetAsync(_name.Text);
             _lastSent = new PointF(-1, -1); // resend our position
         }
-        catch (FreeSyncException e)
+        catch (BonfireException e)
         {
             AddChatLine($"[error] {e.Code}: {e.Message}");
         }
@@ -435,7 +435,7 @@ internal sealed class DemoForm : Form
             await task;
             _lastRtt = sw.ElapsedMilliseconds;
         }
-        catch (FreeSyncException e)
+        catch (BonfireException e)
         {
             AddChatLine($"[refused] {e.Code}: {e.Message}");
         }
