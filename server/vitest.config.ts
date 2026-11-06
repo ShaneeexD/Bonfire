@@ -7,7 +7,7 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         // Test-only secrets and tighter limits so the limit tests run quickly.
-        bindings: { READ_KEY: "test-read", WRITE_KEY: "test-write" },
+        bindings: { READ_KEY: "test-read", WRITE_KEY: "test-write", IDENTITY_SECRET: "test-identity-secret" },
       },
     }),
   ],

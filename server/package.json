@@ -9,7 +9,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types",
-    "postinstall": "wrangler types"
+    "postinstall": "wrangler types",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs",
+    "identity": "node scripts/identity.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.5.1",

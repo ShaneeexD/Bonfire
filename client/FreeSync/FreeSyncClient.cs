@@ -98,6 +98,8 @@ namespace FreeSync
             _httpBase = new UriBuilder(baseUri) { Scheme = httpScheme, Path = baseUri.AbsolutePath + roomPath }.Uri;
             _events = new EventDispatcher(_opts.EventDispatch, Log);
             if (_opts.ClientToken != null) ClientId = Ids.ClientIdFor(room, _opts.ClientToken);
+            // A verified identity decides the id (the server checks the signature; reading it here just saves a round trip).
+            if (_opts.IdentityToken != null && FreeSyncIdentity.ReadPlayerId(_opts.IdentityToken) is string sub) ClientId = sub;
             if (_opts.CacheDirectory != null) _disk = new DiskCache(_opts.CacheDirectory, baseUri.Host, room, Log);
             _online = _opts.AutoConnect;
             _state = _online ? ConnectionState.Connecting : ConnectionState.Offline;
@@ -115,6 +117,12 @@ namespace FreeSync
 
         /// <summary>The role granted by the key ("public" or "admin"), once connected.</summary>
         public string? Role { get; private set; }
+
+        /// <summary>
+        /// True when the server verified this client's <see cref="FreeSyncOptions.IdentityToken"/>, so
+        /// <see cref="ClientId"/> is a proven player id. Known once connected.
+        /// </summary>
+        public bool IsVerified { get; private set; }
 
         /// <summary>The current connection state.</summary>
         public ConnectionState State
@@ -499,6 +507,12 @@ namespace FreeSync
                 {
                     var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer " + _key };
                     if (_opts.ClientToken != null) headers["X-FreeSync-Token"] = _opts.ClientToken;
+                    var identity = _opts.IdentityTokenProvider != null ? await _opts.IdentityTokenProvider().ConfigureAwait(false) : _opts.IdentityToken;
+                    if (!string.IsNullOrEmpty(identity))
+                    {
+                        headers["X-FreeSync-Identity"] = identity!;
+                        if (FreeSyncIdentity.ReadPlayerId(identity!) is string sub) ClientId = sub;
+                    }
                     await socket.ConnectAsync(_wsUri, headers, _opts.KeepAliveInterval, ct).ConfigureAwait(false);
                     lock (_gate) _socket = socket;
                     await ReceiveLoop(socket, ct).ConfigureAwait(false);
@@ -557,9 +571,12 @@ namespace FreeSync
                         if (closeCode == 4008) delay = Max(delay, TimeSpan.FromSeconds(30));
                         if (httpStatus == 401 || httpStatus == 403 || closeCode == 4001)
                         {
-                            LastError = new FreeSyncException("http_" + (httpStatus ?? 401), "the server refused the key");
+                            var usesIdentity = _opts.IdentityTokenProvider != null || _opts.IdentityToken != null;
+                            LastError = new FreeSyncException("http_" + (httpStatus ?? 401),
+                                usesIdentity ? "the server refused the key or the identity token (expired, or signed with another secret?)" : "the server refused the key");
                             RaiseError(LastError);
-                            delay = _opts.ReconnectMaxDelay;
+                            // A token provider can supply a fresh token, so keep normal backoff; otherwise retrying soon won't help.
+                            if (_opts.IdentityTokenProvider == null) delay = _opts.ReconnectMaxDelay;
                         }
                         SetState(ConnectionState.Reconnecting);
                     }
@@ -676,6 +693,7 @@ namespace FreeSync
             _socketRev = m.TryGetValue("rev", out var r) && r is long rev ? rev : 0;
             if (m.TryGetValue("cid", out var cid) && cid is string c) ClientId = c;
             if (m.TryGetValue("role", out var role) && role is string ro) Role = ro;
+            IsVerified = m.TryGetValue("verified", out var verified) && verified is true;
             if (m.TryGetValue("lim", out var lim) && lim is Dictionary<string, object?> limits)
             {
                 if (limits.TryGetValue("ops", out var ops) && ops is long o) _maxOps = (int)Math.Max(1, o);

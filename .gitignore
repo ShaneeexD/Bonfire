@@ -12,6 +12,8 @@ server/.deployed-url
 # Cloudflare API token and account ID for the admin editor's usage meter.
 server/.analytics-token
 server/.cloudflare-account
+# Room backups made by `npm run backup` hold your users' data.
+server/backups/
 .env
 .env.*
 !.env.example

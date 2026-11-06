@@ -8,7 +8,7 @@ import { DurableObject } from "cloudflare:workers";
 import { loadConfig, type Config, type FreeSyncEnv } from "./config";
 import { isPrefix, joinPath, parsePath, PathError, utf8Length, MAX_PATH_DEPTH, type Path } from "./paths";
 import { Close, Err, PING, PONG, PROTOCOL_VERSION, type Attachment, type Role } from "./protocol";
-import { Rules } from "./rules";
+import { Rules, type Who } from "./rules";
 import { Stats } from "./stats";
 import { Store, StoreError } from "./store";
 import { getIn, isObject, normalize, setIn, ValueError, type Json, type JsonObject } from "./value";
@@ -64,6 +64,10 @@ function deepMerge(base: Json, over: Json): Json {
   const out: JsonObject = { ...base };
   for (const [k, v] of Object.entries(over)) out[k] = deepMerge(base[k] ?? null, v);
   return out;
+}
+
+function who(att: Attachment): Who {
+  return { cid: att.cid, uid: att.uid, role: att.role };
 }
 
 function nextUtcMidnight(now = Date.now()): number {
@@ -124,7 +128,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     const room = req.headers.get("x-fs-room") ?? "";
     switch (url.pathname) {
       case "/connect":
-        return this.acceptClient(room, role, req.headers.get("x-fs-cid") ?? "");
+        return this.acceptClient(room, role, req.headers.get("x-fs-cid") ?? "", req.headers.get("x-fs-uid") ?? undefined);
       case "/snapshot":
         return this.snapshot(room, role, url.searchParams.get("path") ?? "", req.headers.get("if-none-match"));
       case "/stats":
@@ -134,7 +138,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     }
   }
 
-  private acceptClient(room: string, role: Role, cid: string): Response {
+  private acceptClient(room: string, role: Role, cid: string, uid: string | undefined): Response {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     const conn = crypto.randomUUID();
@@ -142,6 +146,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     const att: Attachment = {
       conn,
       cid,
+      ...(uid ? { uid } : {}),
       role,
       room,
       subs: [],
@@ -156,6 +161,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
         v: PROTOCOL_VERSION,
         cid,
         role,
+        verified: uid !== undefined,
         rev: this.store.currentRev(),
         lim: {
           frame: this.cfg.maxFrameBytes,
@@ -177,7 +183,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     } catch (e) {
       return Response.json({ code: Err.BadPath, msg: (e as Error).message }, { status: 400 });
     }
-    const denied = this.rules(room).checkRead(path, "", role);
+    const denied = this.rules(room).checkRead(path, { cid: "", role });
     if (denied) return Response.json({ code: Err.PermissionDenied, msg: denied }, { status: 403 });
     const { value, rev } = this.store.read(path);
     const etag = `"${Math.max(rev, this.store.removeRev())}"`;
@@ -243,7 +249,9 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
       return;
     }
 
-    const retryMs = this.takeTokens(att, msgs.length, bytes);
+    // The write key is fully trusted (it can already change everything), and restoring a backup needs many
+    // large frames, so admin connections skip the rate limit. The per-room daily write budget still applies.
+    const retryMs = att.role === "admin" ? 0 : this.takeTokens(att, msgs.length, bytes);
     if (retryMs > 0) {
       this.stats.bump("denied", msgs.length);
       ws.serializeAttachment(att);
@@ -331,7 +339,7 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
 
   private subscribe(att: Attachment, m: Msg): JsonObject {
     const path = parsePath(m.p);
-    const denied = this.rules(att.room).checkRead(path, att.cid, att.role);
+    const denied = this.rules(att.room).checkRead(path, who(att));
     if (denied) throw new OpError(Err.PermissionDenied, denied);
     const key = joinPath(path);
     if (!att.subs.includes(key)) {
@@ -383,8 +391,8 @@ export class RoomDO extends DurableObject<FreeSyncEnv> {
     const rules = this.rules(att.room);
     const changes = raw.map(([path, v]): Change => {
       const value = normalize(v);
-      const eff = rules.effective(path, att.cid);
-      const denied = rules.checkWrite(path, att.cid, att.role, eff);
+      const eff = rules.effective(path, who(att));
+      const denied = rules.checkWrite(path, who(att), eff);
       if (denied) throw new OpError(Err.PermissionDenied, denied);
       if (eff.maxBytes !== undefined && att.role !== "admin") {
         const size = utf8Length(JSON.stringify(value));

@@ -153,5 +153,28 @@ The footer then shows the account's rows-written bar next to the room's.
   - `workersInvocationsAdaptive` → `sum { requests }`
   - `durableObjectsSqlStorageGroups` → `max { storedBytes }`
 
+## Backups
+
+The **Backups** tab protects you from mistakes. Restoring always **stages** the old data (with batch
+mode on), so you can review it under **Pending changes** before pressing **Submit**.
+
+- **Automatic backup before every submit (on by default).** Before sending anything, the editor saves
+  the current server value of every path it's about to change. The files go in
+  `%APPDATA%\FreeSync\backups\<room>`, and the last 50 are kept.
+  - **Undo last submit** stages the newest of these backups, putting back exactly what the last
+    submit changed (values it added are removed again).
+  - Pressing it again undoes the undo, because the undo was backed up too.
+  - **Restore selected** goes back further.
+- **Export…** saves the selected node, or the whole room if nothing is selected, as it is on the
+  server, to a JSON file. Staged changes aren't included.
+- **Import / restore file…** restores an export, a `npm run backup` file, or any plain JSON file:
+  - you choose the path to write it to, so you can also restore into another place or room;
+  - plain JSON is written at the selected node.
+- **Large data:** data too big for one message is split into frame-sized writes with the same end
+  result. The Log tab says when that happened.
+
+For scheduled backups without the editor, use `npm run backup` (see
+[docs/DEPLOY.md](../../docs/DEPLOY.md#backups)). The files are interchangeable.
+
 The **Log** tab records what was sent: number of paths and requests, bytes, the resulting revision, and
 how long the server took to confirm it.

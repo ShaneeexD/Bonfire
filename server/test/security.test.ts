@@ -22,31 +22,34 @@ describe("rules (unit)", () => {
     "lobby",
   );
 
+  const pub = { cid: "abc", role: "public" as const };
+  const admin = { cid: "abc", role: "admin" as const };
+
   it("lets clients write only under their own id", () => {
-    expect(rules.checkWrite(p("players/abc/score"), "abc", "public")).toBeNull();
-    expect(rules.checkWrite(p("players/xyz/score"), "abc", "public")).toMatch(/requires admin/);
-    expect(rules.checkWrite(p("players"), "abc", "public")).toMatch(/requires admin/);
-    expect(rules.checkWrite(p("players/xyz"), "abc", "admin")).toBeNull();
+    expect(rules.checkWrite(p("players/abc/score"), pub)).toBeNull();
+    expect(rules.checkWrite(p("players/xyz/score"), pub)).toMatch(/requires admin/);
+    expect(rules.checkWrite(p("players"), pub)).toMatch(/requires admin/);
+    expect(rules.checkWrite(p("players/xyz"), admin)).toBeNull();
   });
 
   it("checks rules below the written path", () => {
-    expect(rules.checkWrite(p("chat/123"), "abc", "public")).toBeNull();
-    expect(rules.checkWrite(p("chat/pinned"), "abc", "public")).toMatch(/requires admin/);
-    expect(rules.checkRead(p(""), "abc", "public")).toMatch(/would include "secret"/);
-    expect(rules.checkRead(p("secret"), "abc", "admin")).toBeNull();
+    expect(rules.checkWrite(p("chat/123"), pub)).toBeNull();
+    expect(rules.checkWrite(p("chat/pinned"), pub)).toMatch(/requires admin/);
+    expect(rules.checkRead(p(""), pub)).toMatch(/would include "secret"/);
+    expect(rules.checkRead(p("secret"), admin)).toBeNull();
   });
 
   it("inherits settings from less specific rules", () => {
-    const eff = rules.effective(p("players/abc/pos/x"), "abc");
+    const eff = rules.effective(p("players/abc/pos/x"), pub);
     expect(eff).toMatchObject({ write: "public", ephemeral: true, maxBytes: 100 });
-    expect(rules.effective(p("players/abc/name"), "abc").ephemeral).toBe(false);
+    expect(rules.effective(p("players/abc/name"), pub).ephemeral).toBe(false);
   });
 
   it("applies per-room overrides", () => {
     const open = new Rules({ default: { read: "public", write: "admin" }, rooms: [{ match: "open-*", default: { write: "public" } }] }, "open-1");
-    expect(open.checkWrite(p("anything"), "abc", "public")).toBeNull();
+    expect(open.checkWrite(p("anything"), pub)).toBeNull();
     const closed = new Rules({ default: { read: "public", write: "admin" }, rooms: [{ match: "open-*", default: { write: "public" } }] }, "lobby");
-    expect(closed.checkWrite(p("anything"), "abc", "public")).not.toBeNull();
+    expect(closed.checkWrite(p("anything"), pub)).not.toBeNull();
   });
 });
 
@@ -98,7 +101,7 @@ describe("validation and limits", () => {
   });
 
   it("rate-limits a connection and closes it after repeated abuse", async () => {
-    const { client } = await connect(roomName());
+    const { client } = await connect(roomName(), { key: READ_KEY });
     const frame = Array.from({ length: 100 }, (_, i) => ({ t: "set", p: `spam/k${i % 5}`, v: i }));
     client.send(frame); // uses the whole burst
     client.send([{ t: "set", id: 1, p: "spam/x", v: 1 }]);
@@ -112,6 +115,13 @@ describe("validation and limits", () => {
     }
     for (let i = 0; i < 100 && !client.closed; i++) await tick(10);
     expect(client.closed?.code).toBe(4008);
+  });
+
+  it("does not rate-limit the write key (backup restores send many large frames)", async () => {
+    const { client } = await connect(roomName(), { key: WRITE_KEY });
+    const big = "x".repeat(40_000);
+    for (let i = 0; i < 6; i++) client.send([{ t: "set", id: i, p: `restore/k${i}`, v: big }]); // ~240 KB at once
+    for (let i = 0; i < 6; i++) expect(await client.next((m) => m.id === i)).toMatchObject({ t: "ack" });
   });
 
   it("caps subscriptions per connection", async () => {

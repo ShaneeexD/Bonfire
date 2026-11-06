@@ -59,6 +59,8 @@ Create the client with `EventDispatch = EventDispatchMode.Queued` and call `db.D
 | `DataSnapshot.Value`, `.GetValue<T>()`, `.Child()`, `.Children`, `.Exists`, `.Rev` | Reading results |
 | `db.State`, `db.StateChanged`, `db.ErrorOccurred`, `db.WritesBlockedUntil` | Connection and quota status |
 | `FreeSyncOptions` | Token, write batching interval, dispatch mode, disk cache, serializer, reconnect timing |
+| `FreeSyncOptions.IdentityToken` / `IdentityTokenProvider`, `db.IsVerified` | Verified player ids from your backend (`$uid` in server rules) |
+| `FreeSyncIdentity.Create(secret, playerId, validFor)` | Sign an identity token. **Backends only**: never ship the secret in a mod |
 
 Refused writes throw `FreeSyncException` with a `Code` such as `permission_denied`, `rate_limited` or
 `write_quota`.

@@ -26,7 +26,9 @@
         { "path": "players/$cid", "write": "public", "maxBytes": 4096 },
         { "path": "players/$cid/pos", "ephemeral": true },
         { "path": "presence/$cid", "write": "public", "maxBytes": 256 },
-        { "path": "chat/*", "write": "public", "maxBytes": 1024 }
+        { "path": "chat/*", "write": "public", "maxBytes": 1024 },
+        // Only players with a server-issued identity token can write their profile ($uid = verified id).
+        { "path": "profiles/$uid", "write": "verified", "maxBytes": 4096 }
       ]
     }
   }

@@ -10,6 +10,7 @@ frames small. The server is the reference implementation:
 GET wss://<host>/db/<room>?v=1
 Authorization: Bearer <read key | write key>     (or ?key=<key>)
 X-FreeSync-Token: <client secret, 16-256 chars>  (optional, or ?token=<...>)
+X-FreeSync-Identity: <signed identity token>     (optional, or ?identity=<...>)
 Upgrade: websocket
 ```
 
@@ -21,6 +22,11 @@ Upgrade: websocket
 - **Client id (`cid`)**: with a token, `cid` is the first 16 base32 characters of
   `SHA-256(room + "\n" + token)`. It is stable across reconnects and can't be claimed without the
   token. Without a token you get a random `anon-…` id per connection. Rules can refer to it as `$cid`.
+- **Verified id (`$uid`)**: with a valid identity token (an HS256 JWT signed with `IDENTITY_SECRET`; see
+  [SECURITY.md](SECURITY.md#verified-player-identities-uid)), `cid` is the token's `sub` and the
+  connection is **verified**.
+  - An invalid token gets HTTP **401** `{"code":"bad_identity","msg":"<reason>"}`.
+  - A server without `IDENTITY_SECRET` answers **400** `identity_not_configured`.
 
 Authentication happens in the upgrade request, so there is no `hello` message. Clients that cannot
 set headers (browsers) use the query-string forms.
@@ -70,7 +76,7 @@ unit (an `upd` is all-or-nothing).
 
 | Message | Fields | Meaning |
 |---|---|---|
-| `welcome` | `v`, `cid`, `role`, `rev`, `lim` | First message on every connection. |
+| `welcome` | `v`, `cid`, `role`, `verified`, `rev`, `lim` | First message on every connection. `verified` is true when an identity token was accepted. |
 | `snap` | `p`, `v` or `nm:true`, `rev`, `id?` | Full value at `p` (reply to `sub`). |
 | `patch` | `rev`, `ops: [[path, value], ...]` | Changes affecting your subscriptions. Each op replaces the value at its path (`null` = deleted). Writes above a subscription are trimmed to the subscribed slice, so you only receive data you subscribed to. At most one `patch` per connection per incoming frame. Writers receive their own changes too. |
 | `ack` | `id`, `rev` | The write (or `unsub`/`od`) with this id was applied. For writes, `rev` equals the rev of the `patch` that carried it, which is sent first. |
@@ -97,7 +103,7 @@ can only happen across reconnects, and `sub` with `since` covers them.
 | `bad_request` | Malformed message, unknown type, binary frame, or too many messages in a frame. |
 | `bad_path` / `bad_value` | Invalid path or value (see above). |
 | `permission_denied` | The rules don't allow this role/client to read or write here. |
-| `rate_limited` | The connection exceeded its token bucket. `retryMs` suggests a wait. Repeated violations close the socket with `4008`. |
+| `rate_limited` | The connection exceeded its token bucket. `retryMs` suggests a wait. Repeated violations close the socket with `4008`. Write-key (admin) connections are not rate-limited. |
 | `too_many_subs` / `too_many_on_disconnect` | Per-connection limits. |
 | `frame_too_large` / `value_too_large` / `chunk_too_large` / `snapshot_too_large` | Size limits. A chunk is one stored subtree; see DESIGN.md. |
 | `room_full` | Room storage limit reached. Deletes still work. |
@@ -128,6 +134,21 @@ If-None-Match: "<etag>"              (optional)
 - Public (read-key) responses are cached in the Cloudflare data centre for `SNAPSHOT_MAX_AGE`
   seconds, so repeated startup reads skip the Durable Object.
 - Values under ephemeral paths are not included.
+
+## Identity endpoint
+
+`POST https://<host>/identity` with the **write key** and a JSON body:
+
+```json
+{"player": "steam-76561198000000001", "ttlSeconds": 86400, "room": "lobby-*"}
+```
+
+- **Fields:** `ttlSeconds` and `room` are optional.
+- **Reply:** `{"token": "...", "player": "...", "expires": "<ISO time>"}`.
+- **Lifetime:** defaults to one day, capped at `IDENTITY_MAX_DAYS`.
+- **Errors:** 403 without the write key, 400 for an unusable player id, and 400
+  `identity_not_configured` without `IDENTITY_SECRET`.
+- **Cost:** it runs in the Worker only (no Durable Object request).
 
 ## Stats endpoint
 

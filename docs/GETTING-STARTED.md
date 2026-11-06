@@ -5,6 +5,7 @@ This guide takes you from an empty folder to a working program in a few minutes.
 - [A .NET app in VS Code](#a-net-app-in-vs-code) (console, tool or game server)
 - [A BepInEx or MelonLoader mod](#a-bepinex-or-melonloader-mod)
 - [A Unity project](#a-unity-project)
+- [Verified players (optional)](#verified-players-optional), if your backend should vouch for players
 
 ## Before you start: a server
 
@@ -184,6 +185,41 @@ Tips:
 - **Logging:** pass `Log = ...` to see connection details in the game's log.
 - **Stripped games:** if the game is built with IL2CPP and strips code, keep your data classes from
   being stripped, or write dictionaries and anonymous objects instead.
+
+## Verified players (optional)
+
+By default a player's id comes from a token on their own PC, so it's stable but self-chosen. If you
+run a backend that knows who players are, it can sign an **identity token**: a game server, an SPT
+server mod, a website with logins, or a Discord bot. The server then treats the id as proven.
+
+1. **Choose a secret** and give it to both sides. On the Worker, put `IDENTITY_SECRET=...` in
+   `server/.deploy-keys.env` and deploy with `--secrets-file` (locally, it's already in `.dev.vars`).
+   Your backend keeps the same secret, and **never** your mod.
+2. **Issue a token on your backend** when a player logs in:
+
+   ```csharp
+   string token = FreeSyncIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
+   ```
+
+   Backends in other languages can use any HS256 JWT library with `{"sub": playerId}` and an expiry,
+   or call `POST /identity` with the write key. For testing: `npm run identity -- --dev --player alice`.
+3. **Pass it to the client** in the mod:
+
+   ```csharp
+   var db = new FreeSyncClient(url, room, readKey, new FreeSyncOptions
+   {
+       IdentityTokenProvider = () => MyBackend.GetFreeSyncTokenAsync(),  // fresh token on every (re)connect
+   });
+   ```
+
+4. **Use `$uid` in rules** for data only the proven owner may write:
+
+   ```jsonc
+   { "path": "profiles/$uid", "write": "verified" }
+   ```
+
+`db.IsVerified` tells you whether the server accepted the token. The details are in
+[SECURITY.md](SECURITY.md#verified-player-identities-uid).
 
 ## A Unity project
 

@@ -31,6 +31,7 @@ working app in VS Code, a BepInEx or MelonLoader mod, or a Unity project.
 [Samples](#samples) ·
 [Files that stay on your machine](#files-that-stay-on-your-machine) ·
 [Tests](#tests) ·
+[Backups](#backups) ·
 [Publishing a release](#publishing-a-release) ·
 [Troubleshooting](#troubleshooting) ·
 [Docs](#docs) ·
@@ -74,6 +75,7 @@ The apps talk to **your own** FreeSync server, so [deploy one](#deploy-to-cloudf
 - **Simple security:**
   - a public read key and a secret write key;
   - per-player ids and path rules (`players/$cid`);
+  - optional **verified identities**: your backend signs a token and rules trust `$uid`;
   - size and depth validation;
   - per-connection rate limits and per-room daily write budgets.
 - **Ephemeral paths** for high-frequency data such as positions: broadcast to clients but never stored.
@@ -302,6 +304,22 @@ db.Dispose();   // closes cleanly; the server runs onDisconnect writes
 Refused writes throw `FreeSyncException` with a `Code` such as `permission_denied`, `rate_limited` or
 `write_quota`.
 
+**Verified players (optional):** if your own backend knows who a player is (a game server, server mod,
+website or bot), it can sign an identity token. Rules can then trust the id with `$uid`:
+
+```csharp
+// On your backend, which knows IDENTITY_SECRET. Never put the secret in a mod.
+string token = FreeSyncIdentity.Create(identitySecret, playerId, TimeSpan.FromHours(24));
+
+// In the mod, using the token from your backend:
+var db = new FreeSyncClient(url, "global", readKey, new FreeSyncOptions { IdentityToken = token });
+// db.ClientId == playerId, and db.IsVerified is true once connected.
+```
+
+For long sessions, use `IdentityTokenProvider` to fetch a fresh token before each reconnect. Setup,
+rules and other ways to issue tokens are in
+[docs/SECURITY.md](docs/SECURITY.md#verified-player-identities-uid).
+
 **Serializers:**
 - **Built-in (default):** handles primitives, lists, dictionaries and plain classes.
 - **Newtonsoft.Json or System.Text.Json:** copy the matching file from
@@ -356,6 +374,11 @@ A Windows app for looking at and editing a room's data like a database. Its
     estimate of requests; and a 7-day history.
   - **Exact account-wide numbers:** add a Cloudflare API token as shown below, and the tab also shows
     the account's totals against every free-plan limit.
+- **Backups tab:**
+  - before every submit, the editor automatically saves the old values, so **Undo last submit** puts
+    them back;
+  - **Export** and **Import** save and restore a room or one node as a JSON file, including restoring
+    into another room.
 - **Log tab:** what was sent, how many requests it took, and how long the server took to confirm.
 
 ### Account-wide usage (optional)
@@ -407,6 +430,21 @@ cd server && npm test                                                   # Worker
 dotnet test --project client/FreeSync.Tests/FreeSync.Tests.csproj       # C# client (xUnit)
 dotnet test --project samples/admin/Tests/FreeSync.AdminEditor.Tests.csproj   # SQL engine, batching, usage meter
 ```
+
+## Backups
+
+Make regular backups, because nothing else protects your data from a bad `DELETE` or a buggy mod:
+
+```bash
+cd server
+npm run backup -- --room global                       # timestamped file in server/backups/global/, keeps the last 30
+npm run restore -- backups/global/<file>.json --yes   # put it back (without --yes it only shows what would change)
+```
+
+- **Daily backups:** schedule `npm run backup` with Task Scheduler or cron, as shown in
+  [docs/DEPLOY.md](docs/DEPLOY.md#backups).
+- **The database editor** also backs up automatically before every submit, with one-click undo, and
+  can export and import the same files.
 
 ## Publishing a release
 

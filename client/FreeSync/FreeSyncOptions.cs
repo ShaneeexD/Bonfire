@@ -48,6 +48,20 @@ namespace FreeSync
         /// </summary>
         public string? ClientToken { get; set; }
 
+        /// <summary>
+        /// A signed identity token from your own backend (see <see cref="FreeSyncIdentity"/>). The server then treats
+        /// <see cref="FreeSyncClient.ClientId"/> as a <b>verified</b> player id, which rules can trust with <c>$uid</c>.
+        /// Takes precedence over <see cref="ClientToken"/>. Tokens expire, so for long sessions prefer
+        /// <see cref="IdentityTokenProvider"/>.
+        /// </summary>
+        public string? IdentityToken { get; set; }
+
+        /// <summary>
+        /// Called before every connection attempt to get a fresh identity token, e.g. by asking your backend.
+        /// Return null to connect without one. Overrides <see cref="IdentityToken"/>.
+        /// </summary>
+        public Func<System.Threading.Tasks.Task<string?>>? IdentityTokenProvider { get; set; }
+
         /// <summary>How long writes are collected before being sent as one frame. Default 100 ms. Zero sends at once.</summary>
         public TimeSpan WriteInterval { get; set; } = TimeSpan.FromMilliseconds(100);
 

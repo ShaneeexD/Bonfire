@@ -30,6 +30,8 @@ export interface Config {
   rateBytesPerSec: number;
   /** Allowed room names. */
   roomPattern: RegExp;
+  /** Longest validity accepted for identity tokens, in days. */
+  identityMaxDays: number;
   rules: RulesConfig;
 }
 
@@ -37,6 +39,8 @@ export interface FreeSyncEnv {
   ROOM: DurableObjectNamespace;
   READ_KEY?: string;
   WRITE_KEY?: string;
+  /** Shared with your backend; signs identity tokens (HS256 JWTs). Optional. */
+  IDENTITY_SECRET?: string;
   [key: string]: unknown;
 }
 
@@ -68,6 +72,7 @@ export function loadConfig(env: FreeSyncEnv): Config {
     rateOpsPerSec: num(env.RATE_OPS_PER_SEC, 20),
     rateBurst: num(env.RATE_BURST, 100, 1),
     rateBytesPerSec: num(env.RATE_BYTES_PER_SEC, 32 * 1024),
+    identityMaxDays: num(env.IDENTITY_MAX_DAYS, 30, 0),
     roomPattern: new RegExp(typeof env.ROOM_PATTERN === "string" && env.ROOM_PATTERN ? env.ROOM_PATTERN : "^[A-Za-z0-9_-]{1,64}$"),
     rules: rules(env.RULES),
   };

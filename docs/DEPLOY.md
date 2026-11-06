@@ -73,6 +73,16 @@ and redeploy. All of them are optional.
 | `MAX_ON_DISCONNECT` | `16` | onDisconnect ops per connection. |
 | `RATE_OPS_PER_SEC` / `RATE_BURST` / `RATE_BYTES_PER_SEC` | `20` / `100` / `32768` | Per-connection token bucket. `RATE_OPS_PER_SEC=0` disables it. |
 | `ROOM_PATTERN` | `^[A-Za-z0-9_-]{1,64}$` | Allowed room names. Tighten it (e.g. `^(global\|lobby-[0-9]+)$`) to stop people creating rooms at random. |
+| `IDENTITY_MAX_DAYS` | `30` | Longest validity accepted for identity tokens. |
+
+**Verified player identities (optional).** Add the secret your backend signs identity tokens with:
+- put `IDENTITY_SECRET=<long random string>` in `server/.deploy-keys.env` and deploy with
+  `--secrets-file`; or
+- run `npx wrangler secret put IDENTITY_SECRET`.
+
+Then rules can use `$uid` and `"verified"`. See
+[SECURITY.md](SECURITY.md#verified-player-identities-uid). `npm run identity -- --player alice` prints a
+token for testing (`--dev` uses the local `.dev.vars` secret).
 
 ## Local development
 
@@ -118,6 +128,44 @@ expired. Cloudflare could change this, so to re-check your deployment:
 If it doesn't, everything still works; each snapshot read just costs a Durable Object request. To
 get caching, add a [custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 to the Worker (it needs a domain on Cloudflare, which is free to add).
+
+## Backups
+
+Cloudflare stores your data durably, but nothing protects it from a bad `DELETE` or a buggy mod. Make
+backups:
+
+```bash
+npm run backup -- --room global                         # backups/global/global-export-<time>.json, keeps 30
+npm run backup -- --room global --out D:\Backups --keep 90
+npm run restore -- backups/global/<file>.json           # shows what would be replaced
+npm run restore -- backups/global/<file>.json --yes     # replaces the room's data with the backup
+npm run restore -- <file> --room global-copy --yes      # or restore into another room (a copy)
+```
+
+- **Where the scripts connect:** they use `server/.deployed-url` and `server/.deploy-keys.env`. Set
+  `FREESYNC_URL` and `FREESYNC_WRITE_KEY` instead, to run them anywhere.
+- **What's included:** backups hold stored data only; ephemeral values such as positions aren't
+  included. A backup reads one snapshot of up to 8 MB (`MAX_SNAPSHOT_BYTES`); back up big rooms per
+  path with `--path`.
+- **Restoring:** `restore` needs Node 22 or newer. Large backups are split into frames that fit the
+  64 KB message limit. The result is the same as one big write, but each frame is applied separately.
+- **Shared format:** the database editor reads and writes the same files (Backups tab).
+- **`server/backups/` is git-ignored**, because it contains your users' data.
+
+**Daily backups on Windows** (Task Scheduler), run once in PowerShell:
+
+```powershell
+schtasks /Create /SC DAILY /ST 04:00 /TN "FreeSync backup" /TR "cmd /c cd /d D:\path\to\repo\server && npm run backup -- --room global"
+```
+
+**On Linux or macOS** (cron), add a line with `crontab -e`:
+
+```
+0 4 * * * cd /path/to/repo/server && npm run backup -- --room global
+```
+
+Each backup costs one Worker request and one Durable Object request, plus SQLite rows read (one per
+stored row in the room). Restoring writes one row per stored subtree.
 
 ## Watching your quota
 

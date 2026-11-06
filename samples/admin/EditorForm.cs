@@ -72,6 +72,11 @@ internal sealed class EditorForm : Form
     private readonly Label _footerText = new() { AutoSize = true, Padding = new Padding(4, 6, 0, 0), ForeColor = Color.DimGray, Cursor = Cursors.Hand };
     private readonly System.Windows.Forms.Timer _usageTimer = new() { Interval = 60_000 };
     private TabPage? _usageTab;
+
+    // Backups
+    private readonly BackupsView _backupsView = new() { Dock = DockStyle.Fill };
+    private TabPage? _backupsTab;
+    private long _scopeRev;
     private bool _usageBusy;
 
     private FreeSyncClient? _db;
@@ -191,9 +196,11 @@ internal sealed class EditorForm : Form
         logTab.Controls.Add(_log);
         _usageTab = new TabPage("Usage");
         _usageTab.Controls.Add(_usageView);
+        _backupsTab = new TabPage("Backups");
+        _backupsTab.Controls.Add(_backupsView);
 
         var tabs = new TabControl { Dock = DockStyle.Fill };
-        tabs.TabPages.AddRange(new[] { sqlTab, pendingTab, _usageTab, logTab });
+        tabs.TabPages.AddRange(new[] { sqlTab, pendingTab, _usageTab, _backupsTab, logTab });
         _pendingTab = pendingTab;
         _tabs = tabs;
 
@@ -291,6 +298,24 @@ internal sealed class EditorForm : Form
         _usageView.AccountId.Text = _settings.AccountId;
         _usageView.ApiToken.Text = _settings.AnalyticsToken;
         _usageView.RefreshButton.Click += async (_, _) => await RefreshUsage();
+        _backupsView.AutoBackup.Checked = SavedSettings.Load("admin-editor").Get("autoBackup") != "off";
+        _backupsView.AutoBackup.CheckedChanged += (_, _) =>
+        {
+            var saved = SavedSettings.Load("admin-editor");
+            saved.Set("autoBackup", _backupsView.AutoBackup.Checked ? "on" : "off");
+            saved.Save();
+        };
+        _backupsView.ExportButton.Click += (_, _) => ExportSelected();
+        _backupsView.ImportButton.Click += (_, _) => ImportFile();
+        _backupsView.UndoButton.Click += (_, _) => UndoLastSubmit();
+        _backupsView.RestoreButton.Click += (_, _) => RestoreSelectedBackup();
+        _backupsView.List.DoubleClick += (_, _) => RestoreSelectedBackup();
+        _backupsView.OpenFolderButton.Click += (_, _) =>
+        {
+            var folder = BackupFile.FolderFor(_room.Text.Trim());
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+        };
         _footerMeter.Click += (_, _) => ShowUsageTab();
         _footerAccount.Click += (_, _) => ShowUsageTab();
         _footerText.Click += (_, _) => ShowUsageTab();
@@ -349,6 +374,7 @@ internal sealed class EditorForm : Form
         _connect.Text = "Disconnect";
         Text = $"FreeSync admin editor - {_room.Text}{(_scope.Length > 0 ? "/" + JsonUtil.Join(_scope) : "")}";
         Subscribe();
+        RefreshBackupList();
         _ = RefreshUsage();
         if (_settings.RunSql) RunWhenLoaded();
     }
@@ -365,6 +391,7 @@ internal sealed class EditorForm : Form
         _subscription = _db!.Ref(JsonUtil.Join(_scope)).OnValue(snap =>
         {
             _scopeValue = snap.Value;
+            _scopeRev = snap.Rev;
             _loaded = true;
             _viewDirty = true;
         }, e =>
@@ -789,25 +816,20 @@ internal sealed class EditorForm : Form
     private async Task<bool> Send(ChangeSet changes, string description)
     {
         if (_db == null) return false;
+        if (_backupsView.AutoBackup.Checked && !await BackupBefore(changes, description)) return false;
         var sw = Stopwatch.StartNew();
         try
         {
-            if (changes.Entries.Any(e => e.Path.Length == 0))
-            {
-                // Replacing the whole room is a plain set at the root.
-                var rev = await _db.Ref("").SetAsync(changes.Entries.First(e => e.Path.Length == 0).Value);
-                Log($"sent {description}: 1 request (root replaced), rev {rev}, {sw.ElapsedMilliseconds} ms");
-                return true;
-            }
-            var updates = changes.ToUpdates();
+            var frames = changes.ToFrames();
             long last = 0;
-            foreach (var update in updates) last = await _db.Ref("").UpdateAsync(update);
-            var bytes = updates.Sum(u => FsJson.Serialize(u).Length);
+            foreach (var frame in frames)
+                last = frame.SetsRoot ? await _db.Ref("").SetAsync(frame.RootValue) : await _db.Ref("").UpdateAsync(frame.Paths);
+            var bytes = frames.Sum(f => f.SetsRoot ? FsJson.Serialize(f.RootValue).Length : FsJson.Serialize(f.Paths).Length);
             _ = RefreshUsage();
-            Log($"sent {description}: {changes.Count} path(s) in {updates.Count} request(s){(updates.Count > 1 ? " (too big for one frame; each part is atomic)" : " (atomic)")}, {bytes} bytes, rev {last}, {sw.ElapsedMilliseconds} ms");
+            Log($"sent {description}: {changes.Count} path(s) in {frames.Count} request(s){(frames.Count > 1 ? " (too big for one frame; each part is atomic)" : " (atomic)")}, {bytes:N0} bytes, rev {last}, {sw.ElapsedMilliseconds} ms");
             return true;
         }
-        catch (Exception e) when (e is FreeSyncException or ArgumentException)
+        catch (Exception e) when (e is FreeSyncException or ArgumentException or FormatException)
         {
             var code = e is FreeSyncException fe ? fe.Code : "invalid";
             Log($"FAILED {description}: {code}: {e.Message}");
@@ -978,6 +1000,142 @@ internal sealed class EditorForm : Form
         saved.Set("path", _path.Text.Trim());
         saved.SetSecret("key", _rememberKey.Checked ? _key.Text.Trim() : null);
         saved.Save();
+    }
+
+    // ---- backups ----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Saves the current server value of every path about to change, so the change can be undone. Paths outside the
+    /// subscribed tree are read from the server first. Returns false if the user cancels after a failed backup.
+    /// </summary>
+    private async Task<bool> BackupBefore(ChangeSet changes, string description)
+    {
+        try
+        {
+            var outside = new Dictionary<string, object?>();
+            foreach (var (path, _) in changes.Entries.Where(e => !JsonUtil.IsPrefix(_scope, e.Path)))
+                outside[JsonUtil.Join(path)] = (await _db!.Ref(JsonUtil.Join(path)).GetAsync()).Value;
+            var server = ServerTree(outside);
+            var backup = BackupFile.BeforeChanges(changes, p => JsonUtil.GetIn(server, p), _room.Text.Trim(), _scopeRev, description);
+            var file = backup.SaveTo(BackupFile.FolderFor(backup.Room), keep: 50);
+            Log($"backed up {changes.Count} path(s) before sending: {Path.GetFileName(file)}");
+            RefreshBackupList();
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or FreeSyncException)
+        {
+            Log($"backup before sending FAILED: {e.Message}");
+            return Confirm($"Couldn't save a backup before sending ({e.Message}).\n\nSend anyway, without a backup?");
+        }
+    }
+
+    private void RefreshBackupList() =>
+        _backupsView.ShowBackups(BackupFile.ListFolder(BackupFile.FolderFor(_room.Text.Trim())).Take(200));
+
+    /// <summary>Saves the selected node (or the whole subscribed tree) as it is on the server.</summary>
+    private void ExportSelected()
+    {
+        if (_db == null || !_loaded)
+        {
+            _backupsView.Status.Text = "Connect first.";
+            return;
+        }
+        var path = _selected ?? _scope;
+        var value = JsonUtil.GetIn(ServerTree(), path);
+        var label = path.Length == 0 ? "room" : string.Join("-", path);
+        using var dialog = new SaveFileDialog
+        {
+            Title = $"Export /{JsonUtil.Join(path)}",
+            Filter = "FreeSync backup (*.json)|*.json",
+            FileName = $"{_room.Text.Trim()}-{label}-{DateTime.Now:yyyyMMdd-HHmmss}.json",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var backup = new BackupFile(_room.Text.Trim(), BackupFile.KindExport, DateTime.UtcNow, _scopeRev,
+            _staged.Count > 0 ? "server data; staged changes not included" : "", new[] { (path, value) });
+        File.WriteAllText(dialog.FileName, backup.ToJson());
+        var size = new FileInfo(dialog.FileName).Length;
+        _backupsView.Status.Text = $"Exported /{JsonUtil.Join(path)} ({UsageModel.Bytes(size)}) to {dialog.FileName}" +
+                                   (_staged.Count > 0 ? ". Staged changes are not included: this is what's on the server." : "");
+        Log($"exported /{JsonUtil.Join(path)} to {dialog.FileName}");
+    }
+
+    /// <summary>Restores a backup or export file, or imports any JSON file at a chosen path.</summary>
+    private void ImportFile()
+    {
+        if (_db == null)
+        {
+            _backupsView.Status.Text = "Connect first.";
+            return;
+        }
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Import or restore",
+            Filter = "JSON (*.json)|*.json|All files (*.*)|*.*",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        BackupFile backup;
+        try
+        {
+            backup = BackupFile.Parse(File.ReadAllText(dialog.FileName), _selected ?? _scope);
+        }
+        catch (Exception e) when (e is IOException or FormatException)
+        {
+            MessageBox.Show(this, e.Message, "Can't read that file");
+            return;
+        }
+        RestoreBackup(backup, Path.GetFileName(dialog.FileName), askTarget: true);
+    }
+
+    private void RestoreSelectedBackup()
+    {
+        if (_backupsView.List.SelectedItems.Count != 1 || _db == null) return;
+        var file = (string)_backupsView.List.SelectedItems[0].Tag!;
+        RestoreBackup(BackupFile.Parse(File.ReadAllText(file), Array.Empty<string>()), Path.GetFileName(file), askTarget: false);
+    }
+
+    private void UndoLastSubmit()
+    {
+        if (_db == null) return;
+        var last = BackupFile.ListFolder(BackupFile.FolderFor(_room.Text.Trim())).FirstOrDefault(b => b.Backup.Kind == BackupFile.KindBeforeSubmit);
+        if (last.Backup == null)
+        {
+            _backupsView.Status.Text = "No automatic backups for this room yet.";
+            return;
+        }
+        RestoreBackup(last.Backup, Path.GetFileName(last.File), askTarget: false);
+    }
+
+    private void RestoreBackup(BackupFile backup, string name, bool askTarget)
+    {
+        var room = _room.Text.Trim();
+        if (backup.Room != "?" && backup.Room != room &&
+            !Confirm($"This backup is from room '{backup.Room}'. Restore it into '{room}'?")) return;
+
+        string[]? target = null;
+        if (askTarget && backup.Entries.Count == 1)
+        {
+            var original = JsonUtil.Join(backup.Entries[0].Path);
+            var answer = Prompt("Restore to", "Path to write this data to (empty = the whole room):", original);
+            if (answer == null) return;
+            try
+            {
+                target = JsonUtil.ParsePath(answer);
+            }
+            catch (FormatException e)
+            {
+                MessageBox.Show(this, e.Message, "Invalid path");
+                return;
+            }
+        }
+        var changes = backup.ToChangeSet(target);
+        var paths = changes.Entries.Count == 1 ? "/" + JsonUtil.Join(changes.Entries[0].Path) : $"{changes.Count} paths";
+        if (!_batch.Checked && !Confirm($"Batch mode is off, so this will be sent right away.\n\nReplace {paths} with the contents of {name}?")) return;
+        Apply(changes, $"restore {name} → {paths}");
+        _backupsView.Status.Text = _batch.Checked
+            ? $"Staged the restore of {paths} from {name}. Check Pending changes, then press Submit."
+            : $"Sent the restore of {paths} from {name}.";
     }
 
     // ---- usage ------------------------------------------------------------------------------

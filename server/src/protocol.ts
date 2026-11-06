@@ -41,6 +41,8 @@ export interface Attachment {
   conn: string;
   /** Client id (stable across reconnects when the client sends a token). */
   cid: string;
+  /** Verified player id, when the connection presented a valid identity token (then cid === uid). */
+  uid?: string;
   role: Role;
   /** Room name (the object needs it for per-room rules after waking from hibernation). */
   room: string;

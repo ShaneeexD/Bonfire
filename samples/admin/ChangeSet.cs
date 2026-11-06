@@ -1,3 +1,4 @@
+using System.Text;
 using FreeSync.Json;
 
 namespace FreeSyncAdmin;
@@ -53,28 +54,87 @@ public sealed class ChangeSet
     public bool ContainsBelow(IReadOnlyList<string> path) => _entries.Any(e => e.Path.Length > path.Count && JsonUtil.IsPrefix(path, e.Path));
 
     /// <summary>
-    /// Splits the changes into multi-path updates that each fit in one WebSocket frame. Normally there is one;
-    /// several are only atomic individually.
+    /// Splits the changes into writes that each fit in one WebSocket frame, in the order they must be sent.
+    /// Normally there is a single multi-path update (atomic). A value too big for one frame is sent as
+    /// "replace with the first part" followed by updates adding the remaining children (recursively), which
+    /// gives the same end result but is only atomic per frame.
     /// </summary>
-    public List<Dictionary<string, object?>> ToUpdates(int maxBytes = 56_000)
+    /// <exception cref="FormatException">A single string or array is larger than a frame and can't be split.</exception>
+    public List<WriteFrame> ToFrames(int maxBytes = 56_000)
     {
-        var result = new List<Dictionary<string, object?>>();
+        var frames = new List<WriteFrame>();
         var current = new Dictionary<string, object?>();
         var size = 0;
-        foreach (var (p, v) in _entries)
+
+        void Flush()
         {
-            var key = JsonUtil.Join(p);
-            var len = key.Length + FsJson.Serialize(v).Length + 8;
-            if (current.Count > 0 && size + len > maxBytes)
+            if (current.Count == 0) return;
+            frames.Add(new WriteFrame(false, null, current));
+            current = new Dictionary<string, object?>();
+            size = 0;
+        }
+
+        void Add(string[] path, object? value, int len)
+        {
+            if (path.Length == 0)
             {
-                result.Add(current);
-                current = new Dictionary<string, object?>();
-                size = 0;
+                // Replacing the whole room is a set at the root, alone in its frame.
+                Flush();
+                frames.Add(new WriteFrame(true, value, new Dictionary<string, object?>()));
+                return;
             }
-            current[key] = v;
+            if (current.Count > 0 && size + len > maxBytes) Flush();
+            current[JsonUtil.Join(path)] = value;
             size += len;
         }
-        if (current.Count > 0) result.Add(current);
-        return result;
+
+        void Emit(string[] path, object? value)
+        {
+            var len = Size(path, value);
+            if (len <= maxBytes)
+            {
+                Add(path, value, len);
+                return;
+            }
+            if (value is not Dictionary<string, object?> obj)
+                throw new FormatException($"the value at /{JsonUtil.Join(path)} is {len:N0} bytes and can't be split into frames (max {maxBytes:N0})");
+
+            // First frame replaces the subtree with as many children as fit; the rest are added afterwards.
+            var first = new Dictionary<string, object?>();
+            var rest = new List<(string Key, object? Value)>();
+            var firstSize = Size(path, null);
+            foreach (var (k, child) in obj)
+            {
+                var childLen = Size(new[] { k }, child);
+                if (rest.Count == 0 && firstSize + childLen <= maxBytes)
+                {
+                    first[k] = child;
+                    firstSize += childLen;
+                }
+                else rest.Add((k, child));
+            }
+            Add(path, first.Count == 0 ? null : first, firstSize);
+            Flush(); // children below must not share a frame with their (overlapping) parent path
+            foreach (var (k, child) in rest) Emit(path.Append(k).ToArray(), child);
+        }
+
+        foreach (var (p, v) in _entries) Emit(p, v);
+        Flush();
+        return frames;
+    }
+
+    private static int Size(IReadOnlyList<string> path, object? value) =>
+        Encoding.UTF8.GetByteCount(JsonUtil.Join(path)) + Encoding.UTF8.GetByteCount(FsJson.Serialize(value)) + 8;
+}
+
+/// <summary>One write to send: either a set at the room root, or a multi-path update (paths → values).</summary>
+public sealed record WriteFrame(bool SetsRoot, object? RootValue, Dictionary<string, object?> Paths)
+{
+    /// <summary>Applies this frame to a tree the way the server does.</summary>
+    public object? ApplyTo(object? tree)
+    {
+        if (SetsRoot) return JsonUtil.Normalize(RootValue);
+        foreach (var (p, v) in Paths) tree = JsonUtil.SetIn(tree, JsonUtil.ParsePath(p), v);
+        return tree;
     }
 }

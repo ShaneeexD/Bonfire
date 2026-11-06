@@ -1,3 +1,5 @@
 # Copy to .dev.vars for `wrangler dev`. Never commit real keys.
 READ_KEY=dev-read-key
 WRITE_KEY=dev-write-key
+# Signs player identity tokens (npm run identity -- --dev --player alice). Optional.
+IDENTITY_SECRET=dev-identity-secret

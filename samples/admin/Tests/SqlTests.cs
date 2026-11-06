@@ -167,9 +167,9 @@ public class SqlTests
         cs.Add(new[] { "chat" }, null);
         Assert.Equal(new[] { "players/b/score", "players/a", "chat" }, cs.Entries.Select(e => JsonUtil.Join(e.Path)));
         Assert.Equal("{\"name\":\"Ann\",\"score\":9}", FsJson.Serialize(cs.Entries[1].Value));
-        var updates = cs.ToUpdates();
-        Assert.Single(updates);
-        Assert.Equal(3, updates[0].Count);
+        var frames = cs.ToFrames();
+        Assert.Single(frames);
+        Assert.Equal(3, frames[0].Paths.Count);
         Assert.True(cs.Touches(new[] { "players", "a", "name" }));
         Assert.True(cs.ContainsBelow(new[] { "players" }));
         Assert.False(cs.Touches(new[] { "players" }));
@@ -180,10 +180,101 @@ public class SqlTests
     {
         var cs = new ChangeSet();
         for (var i = 0; i < 50; i++) cs.Add(new[] { "big", "k" + i }, new string('x', 2000));
-        var updates = cs.ToUpdates(maxBytes: 56_000);
-        Assert.True(updates.Count >= 2);
-        Assert.Equal(50, updates.Sum(u => u.Count));
-        Assert.All(updates, u => Assert.True(FsJson.Serialize(u).Length < 60_000));
+        var frames = cs.ToFrames(maxBytes: 56_000);
+        Assert.True(frames.Count >= 2);
+        Assert.Equal(50, frames.Sum(f => f.Paths.Count));
+        Assert.All(frames, f => Assert.True(FsJson.Serialize(f.Paths).Length < 60_000));
+    }
+
+    /// <summary>A room-sized value: 300 players with nested data, ~400 KB.</summary>
+    private static object? BigRoom()
+    {
+        var players = new Dictionary<string, object?>();
+        for (var i = 0; i < 300; i++)
+            players["p" + i] = new Dictionary<string, object?>
+            {
+                ["name"] = "player " + i, ["score"] = (long)i,
+                ["inventory"] = new Dictionary<string, object?> { ["notes"] = new string('n', 1200), ["gold"] = (long)(i * 7) },
+            };
+        var chat = new Dictionary<string, object?>();
+        for (var i = 0; i < 200; i++) chat["m" + i.ToString("D3")] = new Dictionary<string, object?> { ["text"] = "hello " + i };
+        return new Dictionary<string, object?> { ["players"] = players, ["chat"] = chat, ["motd"] = "hi" };
+    }
+
+    [Theory]
+    [InlineData("")]          // restoring a whole room
+    [InlineData("rooms/a")]   // restoring a subtree
+    public void OversizedValuesAreSplitIntoFramesWithTheSameResult(string target)
+    {
+        var path = JsonUtil.ParsePath(target);
+        var existing = FsJson.Parse("""{"stale":1,"players":{"old":{"x":1}},"rooms":{"a":{"stale":true},"b":{"keep":1}}}""");
+        var cs = new ChangeSet();
+        cs.Add(path, BigRoom());
+
+        var frames = cs.ToFrames(maxBytes: 56_000);
+        Assert.True(frames.Count > 5);
+        Assert.All(frames, f => Assert.True(
+            System.Text.Encoding.UTF8.GetByteCount(f.SetsRoot ? FsJson.Serialize(f.RootValue) : FsJson.Serialize(f.Paths)) < 60_000));
+
+        // Sending the frames in order must give exactly what the single big write would have.
+        var viaFrames = frames.Aggregate(existing, (tree, f) => f.ApplyTo(tree));
+        Assert.Equal(Canonical(cs.ApplyTo(existing)), Canonical(viaFrames));
+        // Each frame's paths are disjoint, as the server requires for one update.
+        foreach (var f in frames)
+        {
+            var keys = f.Paths.Keys.Select(k => JsonUtil.ParsePath(k)).ToList();
+            Assert.DoesNotContain(keys, a => keys.Any(b => !ReferenceEquals(a, b) && JsonUtil.IsPrefix(a, b)));
+        }
+    }
+
+    /// <summary>JSON with object keys sorted, so trees compare by content (key order carries no meaning).</summary>
+    private static string Canonical(object? v) => v switch
+    {
+        Dictionary<string, object?> d => "{" + string.Join(",", d.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => FsJson.Serialize(kv.Key) + ":" + Canonical(kv.Value))) + "}",
+        List<object?> l => "[" + string.Join(",", l.Select(Canonical)) + "]",
+        _ => FsJson.Serialize(v),
+    };
+
+    [Fact]
+    public void UnsplittableValuesAreRefusedClearly()
+    {
+        var cs = new ChangeSet();
+        cs.Add(new[] { "blob" }, new string('x', 70_000));
+        var e = Assert.Throws<FormatException>(() => cs.ToFrames());
+        Assert.Contains("/blob", e.Message);
+    }
+
+    [Fact]
+    public void BackupsRoundTripAndUndoABatch()
+    {
+        var server = FsJson.Parse("""{"players":{"a":{"score":5},"b":{"score":7}},"motd":"hi"}""");
+        var batch = new ChangeSet();
+        batch.Add(new[] { "players", "a", "score" }, 50L);
+        batch.Add(new[] { "players", "c" }, FsJson.Parse("""{"score":1}"""));
+        batch.Add(new[] { "motd" }, null);
+
+        var before = BackupFile.BeforeChanges(batch, p => JsonUtil.GetIn(server, p), "lobby", 42, "test");
+        var reloaded = BackupFile.Parse(before.ToJson(), Array.Empty<string>());
+        Assert.Equal("lobby", reloaded.Room);
+        Assert.Equal(BackupFile.KindBeforeSubmit, reloaded.Kind);
+        Assert.Equal(42, reloaded.Rev);
+        Assert.Equal(3, reloaded.Entries.Count);
+
+        var after = batch.ApplyTo(server);
+        var undone = reloaded.ToChangeSet().ApplyTo(after);
+        Assert.Equal(FsJson.Serialize(server), FsJson.Serialize(undone));  // restoring the backup undoes the batch
+    }
+
+    [Fact]
+    public void ExportsCanBeRestoredElsewhereAndPlainJsonIsAccepted()
+    {
+        var export = new BackupFile("lobby", BackupFile.KindExport, DateTime.UtcNow, 9, "", new[] { (new[] { "players" }, FsJson.Parse("""{"a":1}""")) });
+        var moved = BackupFile.Parse(export.ToJson(), Array.Empty<string>()).ToChangeSet(new[] { "archive", "players" });
+        Assert.Equal("{\"archive\":{\"players\":{\"a\":1}}}", FsJson.Serialize(moved.ApplyTo(null)));
+
+        var plain = BackupFile.Parse("""{"x":{"y":2}}""", new[] { "imported" });
+        Assert.Equal(BackupFile.KindPlainJson, plain.Kind);
+        Assert.Equal("{\"imported\":{\"x\":{\"y\":2}}}", FsJson.Serialize(plain.ToChangeSet().ApplyTo(null)));
     }
 
     [Theory]
