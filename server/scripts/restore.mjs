@@ -123,5 +123,7 @@ for (let i = 0; i < frames.length; i++) {
   if (frames.length > 1) process.stdout.write(`\r  sent ${i + 1}/${frames.length} frames`);
 }
 if (frames.length > 1) process.stdout.write("\n");
-ws.close(1000, "done");
 console.log(`restored in ${frames.length} frame(s); room '${room}' is now at rev ${rev}`);
+// Every frame is acknowledged, so don't wait for the close handshake (Node can linger on it for ~10 s).
+ws.close(1000, "done");
+process.exit(0);
